@@ -139,15 +139,17 @@ def evaluate_comp(gen_comp, tar_comp):
     ### Revise extracting of embeddings: extract them all prior to the loop. \
     ### The current way is naive: calls the functions in each iteration
     bleu_scores = []
-    con_sent_embs = []
+    con_sent_emb_cs = []
     for c,v in enumerate(gen_comp):
-        bleu_scores.append(bleu.compute(predictions=[v], references=[tar_comp[c]]))
-        con_sent_embs.append(cosine_similarity(con_sent_emb(v,tar_comp[c]))[0][1])
+        bleu_scores.append(bleu.compute(predictions=[v], references=[tar_comp[c]])['bleu'])
+        con_sent_emb_cs.append(cosine_similarity(con_sent_emb(v,tar_comp[c]))[0][1])
 
     # Loop over the generated completions and compute the BLEU score against the according reference
     #bleu_scores = [bleu.compute(predictions=[v], references=[tar_comp[c]]) for c,v in enumerate(gen_comp)]
-    print(f"Average BLEU score = {np.average([result['bleu'] for result in bleu_scores])}")
-    print(f"Average cosine similarity (sT5) = {np.average(con_sent_embs)}")
+    #print(f"Average BLEU score = {np.average([result['bleu'] for result in bleu_scores])}")
+
+    print(f"Average BLEU score = {np.average(bleu_scores)}")
+    print(f"Average cosine similarity (sT5) = {np.average(con_sent_emb_cs)}")
 
     #print(f"{cosine_similarity(con_sent_emb(gen_comp[0], tar_comp[0])) = }")
     #print(f"Cosine similarity for the first completion: {cosine_similarity(con_sent_emb(gen_comp[0], tar_comp[0]))}")
