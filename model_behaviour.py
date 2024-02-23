@@ -18,6 +18,8 @@ from transformers import (
 )
 import torch
 import sys
+from sentence_transformers import SentenceTransformer
+import sister
 
 
 def tokenize_function(examples, **fn_kwargs):
@@ -41,6 +43,34 @@ def preprocess(example):
         "Source": [f"Complete this utterance: {example['Source']}"],
         "Target": [example['Target']]
     }
+
+
+def con_sent_emb(gen_sen, tar_sen):
+    """ Function to retrieve the contextualised sentence embeddings"""
+    # ref: https://huggingface.co/sentence-transformers/sentence-t5-large
+    model = SentenceTransformer("sentence-transformers/sentence-t5-large")  # "sentence-transformers/sentence-t5-base"
+    #model = SentenceTransformer("all-MiniLM-L6-v2")  # SentenceBERT
+
+    # Generate the contextualised embeddings for the generated and the target completions
+    gen_emb = model.encode(gen_sen)
+    tar_emb = model.encode(tar_sen)
+
+    return gen_emb, tar_emb
+
+
+
+def fastText_sent_emb(gen_sen, tar_sen):
+    """ Function to retrieve the static sentence embeddings from FastText"""
+    # ref: https://towardsdatascience.com/super-easy-way-to-get-sentence-embedding-using-fasttext-in-python-a70f34ac5b7c
+    
+    # Initialise the embedder
+    embedder = sister.MeanEmbedding(lang="en")
+
+    # Generate the contextualised embeddings for the generated and the target completions
+    gen_emb = [embedder(sen) for sen in gen_sen]
+    tar_emb = [embedder(sen) for sen in tar_sen]
+
+    return gen_emb, tar_emb
 
 
 def zero_shot(test_df, model_path, random_seed):
