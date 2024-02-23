@@ -19,7 +19,8 @@ from transformers import (
 import torch
 import sys
 from sentence_transformers import SentenceTransformer
-import sister
+#import sister  # Ref: https://github.com/tofunlp/sister
+from sklearn.metrics.pairwise import cosine_similarity
 
 
 def tokenize_function(examples, **fn_kwargs):
@@ -46,7 +47,12 @@ def preprocess(example):
 
 
 def con_sent_emb(gen_sen, tar_sen):
-    """ Function to retrieve the contextualised sentence embeddings"""
+    """ Function to retrieve the contextualised sentence embeddings
+    Input: a list of list of strings
+    Output: a list of list of contextualised sentence embeddings
+    """
+    # Perhaps also explore SIF: https://github.com/PrincetonML/SIF
+
     # ref: https://huggingface.co/sentence-transformers/sentence-t5-large
     model = SentenceTransformer("sentence-transformers/sentence-t5-large")  # "sentence-transformers/sentence-t5-base"
     #model = SentenceTransformer("all-MiniLM-L6-v2")  # SentenceBERT
@@ -67,8 +73,8 @@ def fastText_sent_emb(gen_sen, tar_sen):
     embedder = sister.MeanEmbedding(lang="en")
 
     # Generate the contextualised embeddings for the generated and the target completions
-    gen_emb = [embedder(sen) for sen in gen_sen]
-    tar_emb = [embedder(sen) for sen in tar_sen]
+    gen_emb = embedder(gen_sen)
+    tar_emb = embedder(tar_sen)
 
     return gen_emb, tar_emb
 
@@ -102,9 +108,9 @@ def zero_shot(test_df, model_path, random_seed):
 
     # Tokenise without prefix c.q. any instructions
     #tokens = tokenizer(test_dataset['Source'], padding=True, return_tensors="pt")
-    output = model.generate(**tokens)
+    output = model.generate(**tokens, max_new_tokens=50)
 
-    print(f"Completed sentences: {tokenizer.batch_decode(output, skip_special_tokens=True)}")
+    #print(f"Completed sentences: {tokenizer.batch_decode(output, skip_special_tokens=True)}")
     return tokenizer.batch_decode(output, skip_special_tokens=True), test_dataset["Target"]
 
 
@@ -120,9 +126,9 @@ def temp_test(model_path):
     model = AutoModelForSeq2SeqLM.from_pretrained(model_path)
     sequences = ['He was have a good time with this.', 'Complete this utterance: He was have a good time with this.', 'Complete this utterance into a grammatical sentence: He was have a good time with this.']
     tokens = tokenizer(sequences, padding=True, return_tensors="pt")
-    print(f"{tokens = }")
-    output = model.generate(**tokens)
-    print(f" Completed sentences: {tokenizer.batch_decode(output, skip_special_tokens=True)}")
+    #print(f"{tokens = }")
+    output = model.generate(**tokens, max_new_tokens=50)
+    #print(f" Completed sentences: {tokenizer.batch_decode(output, skip_special_tokens=True)}")
     return tokenizer.batch_decode(output, skip_special_tokens=True)
 
 
@@ -130,13 +136,23 @@ def evaluate_comp(gen_comp, tar_comp):
     """ Evaluate the predicted completions against the target completions"""
     bleu = evaluate.load("bleu")
 
-    ### Create one for loop that computes the BLEU scores, gets the embeddings (separate function) \
-    ### and computes the cosine similarity.
+    ### Revise extracting of embeddings: extract them all prior to the loop. \
+    ### The current way is naive: calls the functions in each iteration
+    bleu_scores = []
+    con_sent_embs = []
+    for c,v in enumerate(gen_comp):
+        bleu_scores.append(bleu.compute(predictions=[v], references=[tar_comp[c]]))
+        con_sent_embs.append(cosine_similarity(con_sent_emb(v,tar_comp[c]))[0][1])
 
     # Loop over the generated completions and compute the BLEU score against the according reference
-    bleu_scores = [bleu.compute(predictions=[v], references=[tar_comp[c]]) for c,v in enumerate(gen_comp)]
+    #bleu_scores = [bleu.compute(predictions=[v], references=[tar_comp[c]]) for c,v in enumerate(gen_comp)]
     print(f"Average BLEU score = {np.average([result['bleu'] for result in bleu_scores])}")
+    print(f"Average cosine similarity (sT5) = {np.average(con_sent_embs)}")
 
+    #print(f"{cosine_similarity(con_sent_emb(gen_comp[0], tar_comp[0])) = }")
+    #print(f"Cosine similarity for the first completion: {cosine_similarity(con_sent_emb(gen_comp[0], tar_comp[0]))}")
+    #print(f"First generated completion: {gen_comp[0]}")
+    #print(f"First target completion: {tar_comp[0]}")
 
 
 if __name__ == "__main__":
