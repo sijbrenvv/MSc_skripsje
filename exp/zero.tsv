@@ -1,0 +1,11 @@
+Source	Target	Gen_comp	Bleu	Cos_sim_t5
+But this special here.	This here is special.	This is a great place to go.	0.0	0.7741055
+And he's up that because getting get down.	He is up there because, now he is getting down.	he's up that because getting get down.	0.0	0.940898
+And he's and he go back home back there again and here.	He goes back home into the house.	And he's and he go back home back there again and here.	0.0	0.8779129
+But maybe two months or one month we will begin to drive.	Maybe in two months or one, we will begin to drive.	But maybe two months or one month we will begin to drive.	0.5783569866465142	0.9828018
+Drive, store. Mom.	My mom drove me to the store.	Car.	0.0	0.7490417
+And sees by herself are of these and and that there.	She sees all of this and that over there by herself.	And sees by herself are of these and and that there.	0.0	0.9350994
+And we're getting not good here but we're hiring.	We are getting retired. We are retiring.	And we're getting not good here but we're hiring.	0.0	0.7363869
+I was um...	I was...	I was a little bit sluggish.	0.0	0.8001094
+And they see they put all the down there to there and stuff.	They see it and put it all down over there.	And they see they put all the down there to there and stuff.	0.0	0.8542679
+The the the guy is helping the bicyclist. . . The other way around. . . The man is. . . The man is quaching the priest eh the bicycle.	The cyclist is helped by the man.	The man is helping the bicyclist.	0.0	0.95885146

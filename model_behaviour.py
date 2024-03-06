@@ -87,7 +87,11 @@ def zero_shot(test_df, model_path, random_seed):
 
     # Get tokeniser and model from huggingface
     tokenizer = AutoTokenizer.from_pretrained(model_path)
-    model = AutoModelForSeq2SeqLM.from_pretrained(model_path)
+    if torch.cuda.is_available():
+        model = AutoModelForSeq2SeqLM.from_pretrained(model_path, load_in_8bit=True)
+    else:
+        model = AutoModelForSeq2SeqLM.from_pretrained(model_path)
+
 
     # Use a GPU if available
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -104,10 +108,10 @@ def zero_shot(test_df, model_path, random_seed):
     #output = model.generate(**{'input_ids': torch.as_tensor(tokenized_test_dataset["input_ids"]), 'attention_mask': torch.as_tensor(tokenized_test_dataset["attention_mask"])})
 
     # Tokenise using an extensive prefix
-    tokens = tokenizer(['Complete this utterance into a grammatical sentence. Remove stop words and filler words, change verb and noun inflections and the sentence structure appropriately. Add the subject or verbs if necessary: ' + s for s in test_dataset['Source']], padding=True, return_tensors="pt")
+    #tokens = tokenizer(['Complete this utterance into a grammatical sentence. Remove stop words and filler words, change verb and noun inflections and the sentence structure appropriately. Add the subject or verbs if necessary: ' + s for s in test_dataset['Source']], padding=True, return_tensors="pt")
 
     # Tokenise without prefix c.q. any instructions
-    #tokens = tokenizer(test_dataset['Source'], padding=True, return_tensors="pt")
+    tokens = tokenizer(test_dataset['Source'], padding=True, return_tensors="pt")
     output = model.generate(**tokens, max_new_tokens=50)
 
     #print(f"Completed sentences: {tokenizer.batch_decode(output, skip_special_tokens=True)}")
@@ -123,7 +127,7 @@ def temp_test(model_path):
     #print(completer('Complete this utterance into a grammatical sentence: He was have a good time with this.'))
 
     tokenizer = AutoTokenizer.from_pretrained(model_path)
-    model = AutoModelForSeq2SeqLM.from_pretrained(model_path)
+    model = AutoModelForSeq2SeqLM.from_pretrained(model_path, load_in_8bit=True)
     sequences = ['He was have a good time with this.', 'Complete this utterance: He was have a good time with this.', 'Complete this utterance into a grammatical sentence: He was have a good time with this.']
     tokens = tokenizer(sequences, padding=True, return_tensors="pt")
     #print(f"{tokens = }")
@@ -148,13 +152,11 @@ def evaluate_comp(gen_comp, tar_comp):
     #bleu_scores = [bleu.compute(predictions=[v], references=[tar_comp[c]]) for c,v in enumerate(gen_comp)]
     #print(f"Average BLEU score = {np.average([result['bleu'] for result in bleu_scores])}")
 
-    print(f"Average BLEU score = {np.average(bleu_scores)}")
-    print(f"Average cosine similarity (sT5) = {np.average(con_sent_emb_cs)}")
+    # Mean scores
+    #print(f"Average BLEU score = {np.average(bleu_scores)}")
+    #print(f"Average cosine similarity (sT5) = {np.average(con_sent_emb_cs)}")
 
-    #print(f"{cosine_similarity(con_sent_emb(gen_comp[0], tar_comp[0])) = }")
-    #print(f"Cosine similarity for the first completion: {cosine_similarity(con_sent_emb(gen_comp[0], tar_comp[0]))}")
-    #print(f"First generated completion: {gen_comp[0]}")
-    #print(f"First target completion: {tar_comp[0]}")
+    return bleu_scores, con_sent_emb_cs
 
 
 if __name__ == "__main__":
@@ -197,4 +199,15 @@ if __name__ == "__main__":
     gen_comp_zero, tar_comp = zero_shot(test_df, model_path=model, random_seed=random_seed)
     #gen_comp_temp = temp_test(model)
 
-    evaluate_comp(gen_comp=gen_comp_zero, tar_comp=tar_comp)
+    bleu_sc, cs_t5 = evaluate_comp(gen_comp=gen_comp_zero, tar_comp=tar_comp)
+
+    output_df = pd.DataFrame({
+        "Source": test_df['Source'].to_list(),
+        "Target": tar_comp,
+        "Gen_comp": gen_comp_zero,
+        "Bleu": bleu_sc,
+        "Cos_sim_t5": cs_t5
+    })
+
+    # Export dataframe
+    output_df.to_csv('exp/zero.tsv', index=False, sep='\t')
