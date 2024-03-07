@@ -4,7 +4,7 @@ import os
 import evaluate
 import numpy as np
 import pandas as pd
-from datasets import Dataset
+from datasets import Dataset, load_metric
 from scipy.special import softmax
 from sklearn.model_selection import train_test_split
 from transformers import (
@@ -76,9 +76,15 @@ def fastText_sent_emb(gen_sen, tar_sen):
     return gen_emb, tar_emb
 
 
-def compute_metrics(eval_pred):
+def compute_metrics(eval_pred, tokenizer):
     """ """
     # ref: https://colab.research.google.com/drive/1RFBIkTZEqbRt0jxpTHgRudYJBZTD3Szn?usp=sharing#scrollTo=qYq_4DWjdXYa
+    ## Different eval metrics and their indexes:
+    # bleu: bleu
+    # chrf: score
+    # google_bleu: google_bleu
+    # meteor: meteor
+
     metric = evaluate.load('bleu')
     predictions, labels = eval_pred
 
@@ -90,9 +96,9 @@ def compute_metrics(eval_pred):
     decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
 
     # Compute score
-    results = {}
+    results = {'metric': 0.0}
     results.update(
-        metric.compute(predictions=decoded_preds, references=decoded_labels)['blue']
+        {'metric': metric.compute(predictions=decoded_preds, references=decoded_labels)['bleu']}
     )
 
     return results
@@ -116,17 +122,11 @@ def zero_shot(val_df, model_path, random_seed):
     print(f"Using device: {device}", file=sys.stderr)
     model.to(device)
 
-    # Tokenise data for the test set
-    #tokenized_test_dataset = test_dataset.map(
-    #    tokenize_function,
-    #    batched=True,
-    #    fn_kwargs={"tokenizer": tokenizer},
-    #)
-
-    #output = model.generate(**{'input_ids': torch.as_tensor(tokenized_test_dataset["input_ids"]), 'attention_mask': torch.as_tensor(tokenized_test_dataset["attention_mask"])})
-
     # Tokenise using an extensive prefix
     #tokens = tokenizer(['Complete this utterance into a grammatical sentence. Remove stop words and filler words, change verb and noun inflections and the sentence structure appropriately. Add the subject or verbs if necessary: ' + s for s in test_dataset['Source']], padding=True, return_tensors="pt")
+
+    # Tokenise using a simple prefix (the same as Misra and colleagues)
+    # tokens = tokenizer(['Complete this sentence: ' + s for s in test_dataset['Source']], padding=True, return_tensors="pt")
 
     # Tokenise without prefix c.q. any instructions and generate completions
     tokens = tokenizer(test_dataset['Source'], padding=True, return_tensors="pt")
@@ -194,23 +194,19 @@ def k_shot(train_df, val_df, model_path, random_seed, k):
     loss = model(input_ids=input_ids, attention_mask=attention_mask, labels=labels).loss
     print(f"Loss: {loss.item()}")
 
-    # Forward pass
-    #new_model = model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
-    #print(f"Loss: {new_model.loss.item()}")
-
     # Tokenise test input and generate completions
     tokens = tokenizer(test_dataset['Source'], padding=True, return_tensors="pt", batched=True)
     output = model.generate(**tokens, max_new_tokens=50)
 
     # Return the generated completions along with the target completions
-    return tokenizer.batch_decode(output, skip_special_tokens=True), test_dataset["Target"]
+    return tokenizer.batch_decode(output, skip_special_tokens=True)
 
 
 def fine_tune(train_df, checkpoints_path, model_path):  # Add 'valid_df' as argument when there is a test set
     """"""
     # Pandas dataframe to huggingface Dataset
-    train_dataset = Dataset.from_pandas(train_df.drop(train_df.tail(8).index, inplace=True))
-    valid_dataset = Dataset.from_pandas(train_df.tail(8))
+    train_dataset = Dataset.from_pandas(train_df.iloc[:-8])
+    valid_dataset = Dataset.from_pandas(train_df.iloc[-8:])
 
     # Get tokeniser and model from huggingface
     tokenizer = AutoTokenizer.from_pretrained(model_path)
@@ -231,20 +227,23 @@ def fine_tune(train_df, checkpoints_path, model_path):  # Add 'valid_df' as argu
     #max_source_length = 512
     #max_target_length = 512
 
-    # Create an empty tokenized_train_dataset and tokenized_valid_dataset
-    # in order to use: tokenized_train_dataset['Source'] = train_dataset.map()
-
     # Encode train data set
     tokenized_train_dataset = train_dataset.map(
         tokenize_function,
         batched=True,
         fn_kwargs={"tokenizer": tokenizer, "max_length": max_length, "col": 'Source'},
     )
-    tokenized_train_dataset = tokenized_train_dataset.map(
+
+    train_labels = tokenized_train_dataset.map(
         tokenize_function,
         batched=True,
         fn_kwargs={"tokenizer": tokenizer, "max_length": max_length, "col": 'Target'},
-    )
+    )['input_ids']
+
+    # Add the labels to the train dataset
+    tokenized_train_dataset = tokenized_train_dataset.to_dict()
+    tokenized_train_dataset["labels"] = train_labels
+    tokenized_train_dataset = Dataset.from_dict(tokenized_train_dataset)
 
     # Encode valid data set
     tokenized_valid_dataset = valid_dataset.map(
@@ -252,12 +251,18 @@ def fine_tune(train_df, checkpoints_path, model_path):  # Add 'valid_df' as argu
         batched=True,
         fn_kwargs={"tokenizer": tokenizer, "max_length": max_length, "col": 'Source'},
     )
-    tokenized_valid_dataset = tokenized_valid_dataset.map(
+    valid_labels = tokenized_valid_dataset.map(
         tokenize_function,
         batched=True,
         fn_kwargs={"tokenizer": tokenizer, "max_length": max_length, "col": 'Target'},
-    )
+    )['input_ids']
 
+    # Add the labels to the train dataset
+    tokenized_valid_dataset = tokenized_valid_dataset.to_dict()
+    tokenized_valid_dataset["labels"] = valid_labels
+    tokenized_valid_dataset = Dataset.from_dict(tokenized_valid_dataset)
+
+    # Create DataCollator object (creates train batches --> speeds up the training process)
     data_collator = DataCollatorForSeq2Seq(tokenizer=tokenizer)
 
     # Create Trainer object
@@ -268,8 +273,8 @@ def fine_tune(train_df, checkpoints_path, model_path):  # Add 'valid_df' as argu
         per_device_eval_batch_size=batch_size,
         num_train_epochs=3,
         weight_decay=0.01,
-        #predict_with_generate=True,  # We perform a generation task and sue BLEU as eval metric
-        #metric_for_best_model="bleu",  # Use bleu score to improve the model, might use another metric
+        predict_with_generate=True,  # We perform a generation task and sue BLEU as eval metric
+        #metric_for_best_model="meteor",  # Use bleu score to improve the model, might use another metric
         evaluation_strategy="epoch",
         save_strategy="epoch",
         load_best_model_at_end=True,
@@ -282,7 +287,7 @@ def fine_tune(train_df, checkpoints_path, model_path):  # Add 'valid_df' as argu
         eval_dataset=tokenized_valid_dataset,
         tokenizer=tokenizer,
         data_collator=data_collator,
-        compute_metrics=compute_metrics,
+        compute_metrics=lambda p: compute_metrics(p, tokenizer)  # Pass tokenizer as an argument,
     )
 
     # Train (fine-tune) the model
@@ -325,19 +330,15 @@ def test(test_df, best_model_path):
     #    batched=True,
     #    fn_kwargs={"tokenizer": tokenizer, "max_length": max_length, "col": 'Source'},
     #)
-    #tokenized_test_dataset = tokenized_test_dataset.map(
-    #    tokenize_function,
-    #    batched=True,
-    #    fn_kwargs={"tokenizer": tokenizer, "max_length": max_length, "col": 'Target'},
-    #)
 
-    tokens = tokenizer(test_dataset['Source'], padding=True, return_tensors="pt", batched=True)
+    tokens = tokenizer(test_dataset['Source'], padding=True, return_tensors="pt")
     output = model.generate(**tokens, max_new_tokens=50)
 
     # Return the generated completions
     return tokenizer.batch_decode(output, skip_special_tokens=True)
 
     """
+    # Create DataCollator object (creates test batches --> speeds up the testing process)
     data_collator = DataCollatorForSeq2Seq(tokenizer=tokenizer)
 
     # Create Trainer object
@@ -352,23 +353,6 @@ def test(test_df, best_model_path):
     predictions = trainer.predict(tokenized_test_dataset)
 """
 
-def temp_test(model_path):
-    """Temporary function to explore the use of HF Pipeline"""
-    # Create a complementer using HuggingFace pipeline
-    #completer = pipeline("text2text-generation", model=model_path)
-    #print(completer('He was have a good time with this.'))
-    #print(completer('Complete this utterance: He was have a good time with this.'))
-    #print(completer('Complete this utterance into a grammatical sentence: He was have a good time with this.'))
-
-    tokenizer = AutoTokenizer.from_pretrained(model_path)
-    model = AutoModelForSeq2SeqLM.from_pretrained(model_path, load_in_8bit=True)
-    sequences = ['He was have a good time with this.', 'Complete this utterance: He was have a good time with this.', 'Complete this utterance into a grammatical sentence: He was have a good time with this.']
-    tokens = tokenizer(sequences, padding=True, return_tensors="pt")
-    #print(f"{tokens = }")
-    output = model.generate(**tokens, max_new_tokens=50)
-    #print(f" Completed sentences: {tokenizer.batch_decode(output, skip_special_tokens=True)}")
-    return tokenizer.batch_decode(output, skip_special_tokens=True)
-
 
 def evaluate_comp(gen_comp, tar_comp):
     """ Evaluate the predicted completions against the target completions"""
@@ -378,7 +362,7 @@ def evaluate_comp(gen_comp, tar_comp):
     ### The current way is naive: calls the functions in each iteration
     bleu_scores = []
     con_sent_emb_cs = []
-    for c,v in enumerate(gen_comp):
+    for c, v in enumerate(gen_comp):
         bleu_scores.append(bleu.compute(predictions=[v], references=[tar_comp[c]])['bleu'])
         con_sent_emb_cs.append(cosine_similarity(con_sent_emb(v,tar_comp[c]))[0][1])
 
@@ -431,28 +415,26 @@ if __name__ == "__main__":
     # Get the data for the train and test sets
     train_df, val_df = get_data(train_path, random_seed)
     #gen_comp_zero = zero_shot(val_df, model_path=model, random_seed=random_seed)
-    #gen_comp_k, tar_comp = k_shot(train_df,val_df,model_path=model,random_seed=random_seed,k=1)
-    #gen_comp_temp = temp_test(model)
+    #gen_comp_k = k_shot(train_df,val_df,model_path=model,random_seed=random_seed,k=1)
 
     # Train completion model
     fine_tune( # Add 'valid_df' as argument when there is a test set
         train_df=train_df,
-        checkpoints_path=f"{model}/{random_seed}",
+        checkpoints_path=f"model/{model}/{random_seed}",
         model_path=model
     )
 
     # Test completion model
-    gen_comp_ft = test(test_df=val_df, best_model_path=f"{model}/{random_seed}/best/")
-
-    bleu_sc, cs_t5 = evaluate_comp(gen_comp=gen_comp_ft, tar_comp=val_df['Target'])
+    gen_comp_ft = test(test_df=val_df, best_model_path=f"model/{model}/{random_seed}/best/")
+    bleu_sc, cs_t5 = evaluate_comp(gen_comp=gen_comp_ft, tar_comp=val_df['Target'].to_list())
 
     output_df = pd.DataFrame({
         "Source": val_df['Source'].to_list(),
-        "Target": tar_comp,
-        "Gen_comp": gen_comp_k,
+        "Target": val_df['Target'].to_list(),
+        "Gen_comp": gen_comp_ft,
         "Bleu": bleu_sc,
         "Cos_sim_t5": cs_t5
     })
 
     # Export dataframe
-    #output_df.to_csv('exp/one.tsv', index=False, sep='\t')
+    output_df.to_csv('exp/many.tsv', index=False, sep='\t')

@@ -1,9 +1,12 @@
 transformers==4.38.1
-datasets==2.16.1
+datasets==2.18.0
 evaluate==0.4.1
-sentence-tranformers==2.5.1
+sentence-transformers==2.5.1
 numpy==1.26.3
 pandas==2.1.4
 scikit-learn==1.3.2
 fasttext @ git+https://github.com/facebookresearch/fastText@6c2204ba66776b700095ff73e3e599a908ffd9c3
 sister
+accelerate==0.27.2
+git+https://github.com/google-research/bleurt.git
+sacrebleu==2.4.0
