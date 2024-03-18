@@ -76,16 +76,18 @@ def fastText_sent_emb(gen_sen, tar_sen):
     return gen_emb, tar_emb
 
 
-def compute_metrics(eval_pred, tokenizer):
+def compute_metrics(eval_pred, tokenizer, eval_metric):
     """ """
     # ref: https://colab.research.google.com/drive/1RFBIkTZEqbRt0jxpTHgRudYJBZTD3Szn?usp=sharing#scrollTo=qYq_4DWjdXYa
     ## Different eval metrics and their indexes:
-    # bleu: bleu
-    # chrf: score
-    # google_bleu: google_bleu
-    # meteor: meteor
+    metric_dic = {
+        "bleu": "bleu",
+        "chrf": "score",
+        "google_bleu": "google_bleu",
+        "meteor": "meteor"
+    }
 
-    metric = evaluate.load('bleu')
+    metric = evaluate.load(eval_metric)
     predictions, labels = eval_pred
 
     # Replace -100 in the labels as we can't decode them.
@@ -98,7 +100,7 @@ def compute_metrics(eval_pred, tokenizer):
     # Compute score
     results = {'metric': 0.0}
     results.update(
-        {'metric': metric.compute(predictions=decoded_preds, references=decoded_labels)['bleu']}
+        {'metric': metric.compute(predictions=decoded_preds, references=decoded_labels)[metric_dic[eval_metric]]}
     )
 
     return results
@@ -202,11 +204,20 @@ def k_shot(train_df, val_df, model_path, random_seed, k):
     return tokenizer.batch_decode(output, skip_special_tokens=True)
 
 
-def fine_tune(train_df, checkpoints_path, model_path, k):  # Add 'valid_df' as argument when there is a test set
+def fine_tune(train_data, checkpoints_path, model_path, eval_metric, random_seed):  # Add 'valid_df' as argument when there is a test set
     """"""
+    # Split the train data into train and dev sets, for the time being
+    train_df, val_df = train_test_split(
+        train_data,
+        test_size=0.2,
+        random_state=random_seed,
+    )
+
     # Pandas dataframe to huggingface Dataset
-    train_dataset = Dataset.from_pandas(train_df.iloc[:k])
-    valid_dataset = Dataset.from_pandas(train_df.iloc[k:])
+    #train_dataset = Dataset.from_pandas(train_df.iloc[:])
+    #valid_dataset = Dataset.from_pandas(train_df.iloc[:])
+    train_dataset = Dataset.from_pandas(train_df)
+    valid_dataset = Dataset.from_pandas(val_df)
 
     # Get tokeniser and model from huggingface
     tokenizer = AutoTokenizer.from_pretrained(model_path)
@@ -287,7 +298,7 @@ def fine_tune(train_df, checkpoints_path, model_path, k):  # Add 'valid_df' as a
         eval_dataset=tokenized_valid_dataset,
         tokenizer=tokenizer,
         data_collator=data_collator,
-        compute_metrics=lambda p: compute_metrics(p, tokenizer)  # Pass tokenizer as an argument,
+        compute_metrics=lambda p: compute_metrics(p, tokenizer, eval_metric)  # Pass tokenizer and eval_metric as arguments
     )
 
     # Train (fine-tune) the model
@@ -357,13 +368,16 @@ def test(test_df, best_model_path):
 def evaluate_comp(gen_comp, tar_comp):
     """ Evaluate the predicted completions against the target completions"""
     bleu = evaluate.load("bleu")
+    meteor = evaluate.load("meteor")
 
     ### Revise extracting of embeddings: extract them all prior to the loop. \
     ### The current way is naive: calls the functions in each iteration
     bleu_scores = []
+    meteor_scores = []
     con_sent_emb_cs = []
     for c, v in enumerate(gen_comp):
         bleu_scores.append(bleu.compute(predictions=[v], references=[tar_comp[c]])['bleu'])
+        meteor_scores.append(meteor.compute(predictions=[v], references=[tar_comp[c]])['meteor'])
         con_sent_emb_cs.append(cosine_similarity(con_sent_emb(v,tar_comp[c]))[0][1])
 
     # Loop over the generated completions and compute the BLEU score against the according reference
@@ -374,7 +388,7 @@ def evaluate_comp(gen_comp, tar_comp):
     #print(f"Average BLEU score = {np.average(bleu_scores)}")
     #print(f"Average cosine similarity (sT5) = {np.average(con_sent_emb_cs)}")
 
-    return bleu_scores, con_sent_emb_cs
+    return {"bleu_sc": bleu_scores, "cs_t5": con_sent_emb_cs, "meteor_sc": meteor_scores}
 
 
 if __name__ == "__main__":
@@ -397,8 +411,16 @@ if __name__ == "__main__":
         "--huggingface_model",
         "-hf",
         type=str,
-        help="Name of the model on HuggingFace",
+        help="Name of the model on HuggingFace. Default: 'google/flan-t5-small'",
         default="google/flan-t5-small"
+    )
+    parser.add_argument(
+        "--eval_metric",
+        "-em",
+        type=str,
+        help="Name of the evaluation metric to use during training. Default: 'bleu'.",
+        choices=["bleu", "chrf", "google_bleu", "meteor"],
+        default="bleu"
     )
 
     args = parser.parse_args()
@@ -407,6 +429,7 @@ if __name__ == "__main__":
     train_path = args.train_file_path  # For example, 'test_samples.tsv'
     #prediction_path = args.prediction_file_path  # For example, 'test_predictions.jsonl'
     model = args.huggingface_model  # For example, 'google/flan-t5-small'
+    eval_metric = args.eval_metric  # For example, bleu
 
     if not os.path.exists(train_path):
         logging.error(f"File doesnt exists: {train_path}")
@@ -417,26 +440,27 @@ if __name__ == "__main__":
     #gen_comp_zero = zero_shot(val_df, model_path=model, random_seed=random_seed)
     #gen_comp_k = k_shot(train_df,val_df,model_path=model,random_seed=random_seed,k=1)
 
-    for k in [1, 3, 5, 10, 32]:
-        # Train completion model
-        fine_tune( # Add 'valid_df' as argument when there is a test set
-            train_df=train_df,
-            checkpoints_path=f"model/{model}/{random_seed}",
-            model_path=model,
-            k=k
-        )
+    # Train completion model
+    fine_tune(  # Add 'valid_df' as argument when there is a test set
+        train_data=train_df,
+        checkpoints_path=f"model/{model}/{random_seed}",
+        model_path=model,
+        eval_metric=eval_metric,
+        random_seed=random_seed
+    )
 
-        # Test completion model
-        gen_comp_ft = test(test_df=val_df, best_model_path=f"model/{model}/{random_seed}/best/")
-        bleu_sc, cs_t5 = evaluate_comp(gen_comp=gen_comp_ft, tar_comp=val_df['Target'].to_list())
+    # Test completion model
+    gen_comp_ft = test(test_df=val_df, best_model_path=f"model/{model}/{random_seed}/best/")
+    eval_sc = evaluate_comp(gen_comp=gen_comp_ft, tar_comp=val_df['Target'].to_list())
 
-        output_df = pd.DataFrame({
-            "Source": val_df['Source'].to_list(),
-            "Target": val_df['Target'].to_list(),
-            "Gen_comp": gen_comp_ft,
-            "Bleu": bleu_sc,
-            "Cos_sim_t5": cs_t5
-        })
+    output_df = pd.DataFrame({
+        "Source": val_df['Source'].to_list(),
+        "Target": val_df['Target'].to_list(),
+        "Gen_comp": gen_comp_ft,
+        "Meteor": eval_sc['meteor_sc'],
+        "Bleu": eval_sc['bleu_sc'],
+        "Cos_sim_t5": eval_sc['cs_t5']
+    })
 
-        # Export dataframe
-        output_df.to_csv(f"exp/{k}_shot.tsv", index=False, sep='\t')
+    # Export dataframe
+    output_df.to_csv(f"exp/fine_tune.tsv", index=False, sep='\t')
