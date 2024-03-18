@@ -273,7 +273,7 @@ def fine_tune(train_df, checkpoints_path, model_path, k):  # Add 'valid_df' as a
         per_device_eval_batch_size=batch_size,
         num_train_epochs=1,
         weight_decay=0.01,
-        predict_with_generate=True,  # We perform a generation task and sue BLEU as eval metric
+        predict_with_generate=True,  # We perform a generation task and use BLEU as eval metric
         #metric_for_best_model="meteor",  # Use bleu score to improve the model, might use another metric
         evaluation_strategy="epoch",
         save_strategy="epoch",
