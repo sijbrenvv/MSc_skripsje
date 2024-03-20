@@ -408,13 +408,13 @@ if __name__ == "__main__":
         help="Path to the train file.",
         type=str,
     )
-    #parser.add_argument(
-    #    "--prediction_file_path",
-    #    "-p",
-    #    required=True,
-    #    help="Path where to save the prediction file.",
-    #    type=str,
-    #)
+    parser.add_argument(
+        "--output_file_path",
+        "-out",
+        required=True,
+        help="Path where to save the output file.",
+        type=str,
+    )
     parser.add_argument(
         "--huggingface_model",
         "-hf",
@@ -472,4 +472,4 @@ if __name__ == "__main__":
     })
 
     # Export dataframe
-    output_df.to_csv(f"exp/fine_tune.tsv", index=False, sep='\t')
+    output_df.to_csv(args.output_file_path, index=False, sep='\t')
