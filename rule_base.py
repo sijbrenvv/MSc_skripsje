@@ -178,17 +178,29 @@ def make_synthetic(example, **fn_kwargs):
         # Remain all other postags
 
     doc = fn_kwargs["udpipe"](example["text"])
-    temp_syn_sent = []
+    temp_syn_sent = " "
     for token in doc:
         pos = token.pos_
         if pos in {}:
-            <>
+            if random.random() < .90:
+                continue
+            else:
+                temp_syn_sent.join(token)
         if pos in {}:
-            <>
+            if random.random() > .50:
+                continue
+            else:
+                temp_syn_sent.join(token)
         if pos in {}:
-            <>
+            temp_syn_sent.join(token.lemma_)
         else:
-            <>
+            temp_syn_sent.join(token)
+    print(f"{temp_syn_sent = }")
+    exit()
+    fn_kwargs["syn_dict"]["synthetic"] = temp_syn_sent
+    fn_kwargs["syn_dict"]["original"] = example["text"]
+
+    return fn_kwargs["syn_dict"]
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
