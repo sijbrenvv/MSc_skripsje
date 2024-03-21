@@ -118,10 +118,8 @@ def keep_sentences(example, **fn_kwargs):
         # Else keep it
     # Return the dictionary with the sentences to keep
 
-    #ks_dict = fn_kwargs["ks_dataset"].to_dict()
-
     doc = fn_kwargs["udpipe"](example["text"])
-    #sentences = []
+
     for sen in doc.sents:
         sen_text = sen.text
         #print(f"{sen_text = }")
@@ -142,7 +140,7 @@ def keep_sentences(example, **fn_kwargs):
                     continue
             else:
                 # Add sentence
-                #sentences.append(sen_text)
+
                 #fn_kwargs["ks_dict"].get("text", []).append(sen_text)
                 fn_kwargs["ks_dict"]["text"] = sen_text
                 # To make sure all sentences are stored together in a list for each example
@@ -150,11 +148,6 @@ def keep_sentences(example, **fn_kwargs):
 
                 # Datset object cannot handle Span object
                 #fn_kwargs["ks_dict"["text_doc"] = sen
-
-    # Update the ks_dict dictionary with sentences for the current example
-    #fn_kwargs["ks_dict"]["text"].extend(sentences)
-    #fn_kwargs["ks_dataset"].reset_format()
-    #print('Dataset format:', fn_kwargs["ks_dataset"].format)
 
     #print(f"{len(ks_dict)}")
     #print('Kept sentences dataset:', fn_kwargs["ks_dict"])
@@ -178,26 +171,39 @@ def make_synthetic(example, **fn_kwargs):
         # Remain all other postags
 
     doc = fn_kwargs["udpipe"](example["text"])
-    temp_syn_sent = " "
+    temp_syn_sent = ""
+
     for token in doc:
         pos = token.pos_
-        if pos in {}:
+        # Perhaps add the Penn Treebank POS tags
+        # Perhaps add the dependencies
+
+        # Removal of subject (noun)? if token.dep_ in {"nsubj"}:
+        # How to target copulas? Copulas are often parsed as the root
+        # Remove particles as well (perhaps a lower drop percentage), as they are function words
+        if pos in {"DET", "ADP", "PART"}:
             if random.random() < .90:
                 continue
             else:
-                temp_syn_sent.join(token)
-        if pos in {}:
+                temp_syn_sent += " " + token.text
+        elif pos in {"ADJ", "ADV"}:
             if random.random() > .50:
                 continue
             else:
-                temp_syn_sent.join(token)
-        if pos in {}:
-            temp_syn_sent.join(token.lemma_)
+                temp_syn_sent += " " + token.text
+        elif pos in {"AUX", "VERB"}:
+            temp_syn_sent += " " + token.lemma_
+        elif pos in {"PUNCT"}:
+            temp_syn_sent += token.text
         else:
-            temp_syn_sent.join(token)
-    print(f"{temp_syn_sent = }")
-    exit()
-    fn_kwargs["syn_dict"]["synthetic"] = temp_syn_sent
+            #print(f" Token and POS tag: {token.text, pos}")
+            temp_syn_sent += " " + token.text
+
+    #print(f"{temp_syn_sent = }")
+    #print(f"{temp_syn_sent[1:]}")
+    #print(f"Original sentence: {example['text']}")
+
+    fn_kwargs["syn_dict"]["synthetic"] = temp_syn_sent[1:]  # Ignore the leading space
     fn_kwargs["syn_dict"]["original"] = example["text"]
 
     return fn_kwargs["syn_dict"]
@@ -212,13 +218,13 @@ if __name__ == "__main__":
         default="NeelNanda/c4-10k",
         type=str,
     )
-    # parser.add_argument(
-    #    "--output_file_path",
-    #    "-out",
-    #    required=True,
-    #    help="Path where to save the output file (synthetic data set).",
-    #    type=str,
-    # )
+    parser.add_argument(
+       "--output_file_path",
+       "-out",
+       required=True,
+       help="Path where to save the output file (synthetic data set).",
+       type=str,
+    )
 
     args = parser.parse_args()
     random_seed = 0
@@ -227,37 +233,41 @@ if __name__ == "__main__":
     identifier = args.huggingface_dataset  # For example, 'allenai/c4'
     #dataset = load_dataset(identifier, "en", streaming=True)
     dataset = load_dataset(identifier)
-    print(dataset)
+    #print(dataset, file=sys.stderr)
 
     # We are only interested in the text column
     column_names = dataset["train"].column_names
 
     # Remove all columns except the first one: the 'text' column
     dataset = dataset["train"].remove_columns(column_names[1:])
-    print(dataset)
+    #print(dataset, file=sys.stderr)
 
 
-    # Create empty Dataset object for the sentences to keep
-    #ks_dataset = Dataset.from_dict({"text": [], "text_doc": []})
-    #ks_dataset = Dataset.from_dict({"text": []})
+    # Create dictionary for the sentences to keep
     ks_dict = {"text": []}
     # Get the udpipe model: nlp = download_spacy_stanza_pipeline()
     nlp = download_spacy_stanza_pipeline()
 
     # Get all the sentences we want to keep and process further
-    updated_dataset = dataset.select(range(10)).map(
+    updated_dataset = dataset.select(range(1000)).map(
         keep_sentences,
         #batched=True,
         fn_kwargs={"ks_dict": ks_dict, "udpipe": nlp},
     )
-    print(updated_dataset)
+    #print(updated_dataset, file=sys.stderr)
 
     # Create dictionary for the synthetic aphasic sentence and the original one
     syn_dict = {"synthetic": [], "original": []}
-    exit()
-    # Create a synthethic aphasic sentence for each kept sentence
+
+    # Create a synthetic aphasic sentence for each kept sentence
     syn_dataset = updated_dataset.map(
         make_synthetic,
         fn_kwargs={"syn_dict": syn_dict, "udpipe": nlp},
+        remove_columns=["text"],
     )
-    print(syn_dataset)
+    #print(syn_dataset, file=sys.stderr)
+    #print(syn_dataset[:10])
+
+    # Export dataset
+    syn_dataset.to_csv(args.output_file_path, index=False, sep='\t')
+
