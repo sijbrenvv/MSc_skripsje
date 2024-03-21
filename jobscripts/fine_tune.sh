@@ -19,7 +19,7 @@ pip install -r requirements.txt
 export HF_DATASETS_CACHE="/scratch/$USER/.cache/huggingface/datasets"
 
 # move downloaded models and tokenizers to the /scratch directory
-export TRANSFORMERS_CACHE="/scratch/$USER/.cache/huggingface/hub"
+export HF_HOME="/scratch/$USER/.cache/huggingface/hub"
 
 # Bleu
 python3 model_behaviour.py -tr data/synthetic_clan.tsv -out exp/fine-tune_bleu.tsv -hf google/flan-t5-xxl -em bleu

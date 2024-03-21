@@ -114,7 +114,7 @@ def zero_shot(val_df, model_path, random_seed):
     # Get tokeniser and model from huggingface
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     if torch.cuda.is_available():
-        model = AutoModelForSeq2SeqLM.from_pretrained(model_path, load_in_8bit=True)
+        model = AutoModelForSeq2SeqLM.from_pretrained(model_path)  #, load_in_8bit=True)
     else:
         model = AutoModelForSeq2SeqLM.from_pretrained(model_path)
 
@@ -150,7 +150,7 @@ def k_shot(train_df, val_df, model_path, random_seed, k):
     # Get tokeniser and model from huggingface
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     if torch.cuda.is_available():
-        model = AutoModelForSeq2SeqLM.from_pretrained(model_path, load_in_8bit=True)
+        model = AutoModelForSeq2SeqLM.from_pretrained(model_path)  #, load_in_8bit=True)
     else:
         model = AutoModelForSeq2SeqLM.from_pretrained(model_path)
 
@@ -222,7 +222,7 @@ def fine_tune(train_data, checkpoints_path, model_path, eval_metric, random_seed
     # Get tokeniser and model from huggingface
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     if torch.cuda.is_available():
-        model = AutoModelForSeq2SeqLM.from_pretrained(model_path, load_in_8bit=True)
+        model = AutoModelForSeq2SeqLM.from_pretrained(model_path)  #, load_in_8bit=True)
         batch_size = 16
     else:
         model = AutoModelForSeq2SeqLM.from_pretrained(model_path)
@@ -321,7 +321,7 @@ def test(test_df, best_model_path):
     # Get tokeniser from saved model and load best model
     tokenizer = AutoTokenizer.from_pretrained(best_model_path)
     if torch.cuda.is_available():
-        model = AutoModelForSeq2SeqLM.from_pretrained(best_model_path, load_in_8bit=True)
+        model = AutoModelForSeq2SeqLM.from_pretrained(best_model_path)  #, load_in_8bit=True)
         batch_size = 16
     else:
         model = AutoModelForSeq2SeqLM.from_pretrained(best_model_path)

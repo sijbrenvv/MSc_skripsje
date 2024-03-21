@@ -180,6 +180,7 @@ def make_synthetic(example, **fn_kwargs):
 
         # Removal of subject (noun)? if token.dep_ in {"nsubj"}:
         # How to target copulas? Copulas are often parsed as the root
+        ## Look for children in the tree: see if it contains two outgoing links, a subject and an object?
         # Remove particles as well (perhaps a lower drop percentage), as they are function words
         if pos in {"DET", "ADP", "PART"}:
             if random.random() < .90:
