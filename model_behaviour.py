@@ -33,7 +33,7 @@ def tokenize_function(examples, **fn_kwargs):
 
 def get_data(train_path, random_seed):
     """Function to read the tsv"""
-    train_df = pd.read_csv(train_path, sep='\t', names=['Source', 'Target'])
+    train_df = pd.read_csv(train_path, sep='\t', names=['Source', 'Target'], header=0)
 
     train_df, val_df = train_test_split(
         train_df,
@@ -368,18 +368,18 @@ def test(test_df, best_model_path):
 def evaluate_comp(gen_comp, tar_comp):
     """ Evaluate the predicted completions against the target completions"""
     bleu = evaluate.load("bleu")
-    meteor = evaluate.load("meteor")
+    #meteor = evaluate.load("meteor")
     chrf = evaluate.load("chrf")
 
     ### Revise extracting of embeddings: extract them all prior to the loop. \
     ### The current way is naive: calls the functions in each iteration
     bleu_scores = []
-    meteor_scores = []
+    #meteor_scores = []
     chrf_scores = []
     con_sent_emb_cs = []
     for c, v in enumerate(gen_comp):
         bleu_scores.append(bleu.compute(predictions=[v], references=[tar_comp[c]])['bleu'])
-        meteor_scores.append(meteor.compute(predictions=[v], references=[tar_comp[c]])['meteor'])
+        #meteor_scores.append(meteor.compute(predictions=[v], references=[tar_comp[c]])['meteor'])
         chrf_scores.append(chrf.compute(predictions=[v], references=[tar_comp[c]])['score'])
         con_sent_emb_cs.append(cosine_similarity(con_sent_emb(v,tar_comp[c]))[0][1])
 
@@ -394,7 +394,7 @@ def evaluate_comp(gen_comp, tar_comp):
     return {
         "bleu_sc": bleu_scores,
         "cs_t5": con_sent_emb_cs,
-        "meteor_sc": meteor_scores,
+        #"meteor_sc": meteor_scores,
         "chrf_sc": chrf_scores
     }
 
@@ -465,7 +465,7 @@ if __name__ == "__main__":
         "Source": val_df['Source'].to_list(),
         "Target": val_df['Target'].to_list(),
         "Gen_comp": gen_comp_ft,
-        "Meteor": eval_sc['meteor_sc'],
+        #"Meteor": eval_sc['meteor_sc'],
         "Bleu": eval_sc['bleu_sc'],
         "ChrF": eval_sc['chrf_sc'],
         "Cos_sim_t5": eval_sc['cs_t5']
