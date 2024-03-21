@@ -194,7 +194,7 @@ def k_shot(train_df, val_df, model_path, random_seed, k):
 
     # Forward pass
     loss = model(input_ids=input_ids, attention_mask=attention_mask, labels=labels).loss
-    print(f"Loss: {loss.item()}")
+    print(f"Loss: {loss.item()}", file=sys.stderr)
 
     # Tokenise test input and generate completions
     tokens = tokenizer(test_dataset['Source'], padding=True, return_tensors="pt", batched=True)
