@@ -44,15 +44,19 @@ if __name__ == "__main__":
     # If the data is synthetic, rename the column name to 'text'
     if aphasic_df["synthetic"]:
         aphasic_df.rename(columns={"synthetic": "text"}, inplace=True)
+    # If the data is authentic, rename the column name to 'text'
+    elif aphasic_df["preprocessed_text"]:
+        aphasic_df.rename(columns={"preprocessed_text": "text"}, inplace=True)
     # We only need the text and label columns for the classifier
     aphasic_df = aphasic_df[["text", "label"]]
 
     # Read the healthy data and add the label = 0
     healthy_df = pd.read_json(args.healthy_data)
     healthy_df["label"] = 0
-    # The healthy data is always authentic, thus no renaming
+    # The healthy data is always authentic
+    healthy_df.rename(columns={"preprocessed_text": "text"}, inplace=True)
     # We only need the text and label columns for the classifier
-    aphasic_df = aphasic_df[["text", "label"]]
+    healthy_df = healthy_df[["text", "label"]]
 
     data_df = pd.concat([aphasic_df, healthy_df])
     # No shuffle needed as train_test_split will shuffle by default
