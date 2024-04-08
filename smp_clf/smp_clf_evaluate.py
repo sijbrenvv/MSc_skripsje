@@ -60,6 +60,11 @@ def main() -> None:
     random_seed = 0
     set_seed(random_seed)
 
+    id2label = {
+        0: "Healthy",
+        1: "Aphasic",
+    }
+
     # Get the dev data
     _X_dev, y_dev = get_data(args.test_data)
 
@@ -68,8 +73,21 @@ def main() -> None:
         y_pred = [line.strip() for line in file]
 
     # Evaluate predictions
-    print(classification_report(y_dev, y_pred, digits=3))
-    print(confusion_matrix(y_dev, y_pred))
+    print(
+        classification_report(
+            y_dev,
+            y_pred,
+            digits=3,
+            target_names=list(id2label.values()),
+        )
+    )
+    print(
+        confusion_matrix(
+            y_dev,
+            y_pred,
+            labels=list(id2label.values()),
+        )
+    )
 
 
     # Save predictions to predefined output file

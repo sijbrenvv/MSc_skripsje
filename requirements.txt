@@ -13,3 +13,4 @@ spacy-udpipe==1.0.0
 spacy_stanza==1.0.4
 stanza==1.6.1
 textstat==0.7.3
+contractions==0.1.73
