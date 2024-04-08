@@ -270,6 +270,6 @@ if __name__ == "__main__":
     #print(syn_dataset[:10])
 
     # Export dataset
-    syn_dataset.to_csv(args.output_file_path, index=False, sep='\t')
+    syn_dataset.to_csv(args.output_file_path + ".tsv", index=False, sep='\t')
     syn_dataset.to_json(args.output_file_path)
 
