@@ -451,14 +451,14 @@ if __name__ == "__main__":
     # Train completion model
     fine_tune(  # Add 'valid_df' as argument when there is a test set
         train_data=train_df,
-        checkpoints_path=f"model/{model}/{random_seed}",
+        checkpoints_path=f"models/{model}/{random_seed}",
         model_path=model,
         eval_metric=eval_metric,
         random_seed=random_seed
     )
 
     # Test completion model
-    gen_comp_ft = test(test_df=val_df, best_model_path=f"model/{model}/{random_seed}/best/")
+    gen_comp_ft = test(test_df=val_df, best_model_path=f"models/{model}/{random_seed}/best/")
     eval_sc = evaluate_comp(gen_comp=gen_comp_ft, tar_comp=val_df['Target'].to_list())
 
     output_df = pd.DataFrame({
