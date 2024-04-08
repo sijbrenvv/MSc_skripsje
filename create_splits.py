@@ -71,5 +71,5 @@ if __name__ == "__main__":
         )
 
     # Output splits to the predefined folder
-    train_df.to_json(args.output_file_path + "train", orient="records")
-    val_df.to_json(args.output_file_path + "dev", orient="records")
+    train_df.to_json(args.output_file_path + "train", orient="records", lines=True)
+    val_df.to_json(args.output_file_path + "dev", orient="records", lines=True)
