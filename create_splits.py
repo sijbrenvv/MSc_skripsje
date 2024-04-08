@@ -1,4 +1,6 @@
 import argparse
+import sys
+
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from transformers import (
@@ -49,6 +51,7 @@ if __name__ == "__main__":
         aphasic_df.rename(columns={"preprocessed_text": "text"}, inplace=True)
     # We only need the text and label columns for the classifier
     aphasic_df = aphasic_df[["text", "label"]]
+    print(f"Aphasic dataframe shape: {aphasic_df.shape}", file=sys.stderr)
 
     # Read the healthy data and add the label = 0
     healthy_df = pd.read_json(args.healthy_data)
@@ -57,6 +60,7 @@ if __name__ == "__main__":
     healthy_df.rename(columns={"preprocessed_text": "text"}, inplace=True)
     # We only need the text and label columns for the classifier
     healthy_df = healthy_df[["text", "label"]]
+    print(f"Healthy dataframe shape: {healthy_df.shape}", file=sys.stderr)
 
     data_df = pd.concat([aphasic_df, healthy_df])
     # No shuffle needed as train_test_split will shuffle by default
