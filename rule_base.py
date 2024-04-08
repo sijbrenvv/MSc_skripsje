@@ -271,4 +271,5 @@ if __name__ == "__main__":
 
     # Export dataset
     syn_dataset.to_csv(args.output_file_path, index=False, sep='\t')
+    syn_dataset.to_json(args.output_file_path)
 
