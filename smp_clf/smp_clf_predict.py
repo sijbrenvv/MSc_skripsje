@@ -17,7 +17,7 @@ def get_data(file_path):
     Args:
         file_path (str): Path to the file containing the data.
     Returns:
-        lists: A list containing the text and a list containing the label columns.
+        pd.Series, pd.Series: A series containing the text and a series containing the label columns.
     """
     file_df = pd.read_json(file_path, lines=True)
     return file_df["text"], file_df["label"]

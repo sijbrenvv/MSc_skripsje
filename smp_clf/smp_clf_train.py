@@ -8,6 +8,12 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.svm import SVC
 from transformers import set_seed
+import logging
+import os
+
+# Use Python logging for logging messages
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 def get_data(file_path):
@@ -16,7 +22,7 @@ def get_data(file_path):
     Args:
         file_path (str): Path to the file containing the data.
     Returns:
-        lists: A list containing the text and a list containing the label columns.
+        pd.Series, pd.Series: A series containing the text and a series containing the label columns.
     """
     file_df = pd.read_json(file_path, lines=True)
     return file_df["text"], file_df["label"]
@@ -53,6 +59,7 @@ def main() -> None:
     set_seed(random_seed)
 
     # Get the train data
+    logger.info("Loading the train data...")
     X_train, y_train = get_data(args.train_file)
 
     classifiers = {
@@ -64,6 +71,7 @@ def main() -> None:
     }
 
     # Get the classic classifier to use
+    logger.info("Loading model...")
     model = classifiers[args.model]
 
     # Initialise the vectoriser using Tf-Idf and unigrams
@@ -77,11 +85,19 @@ def main() -> None:
     )
 
     # Transform the text to binary code
+    logger.info("Encoding the train data...")
     X_train = vectorizer.fit_transform(X_train)
 
-    # Train and save the model
+    # Train the model
+    logger.info("Training model...")
     model.fit(X_train, y_train)
+
+    # Save the model
+    logger.info("Saving model...")
+    #output_path = os.path.join(args.output_dir, "model.pkl")
+    os.makedirs(args.output_file, exist_ok=True)
     joblib.dump(model, args.output_file)
+    logger.info(f"Model saved to: {args.output_file}")
 
 
 if __name__ == "__main__":
