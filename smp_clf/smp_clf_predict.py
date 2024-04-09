@@ -43,9 +43,19 @@ def main() -> None:
         type=str,
         help="Name of output file",
     )
+    parser.add_argument(
+        "--random_seed",
+        "-seed",
+        #required=True,
+        help="The random seed to use.",
+        default=0,
+        type=int,
+    )
+
     args = parser.parse_args()
-    random_seed = 0
-    set_seed(random_seed)
+
+    # Set seed for replication
+    set_seed(args.random_seed)
 
     # Get the dev data
     logger.info("Loading input data...")

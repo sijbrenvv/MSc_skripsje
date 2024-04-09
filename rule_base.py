@@ -276,10 +276,19 @@ if __name__ == "__main__":
        help="Path where to save the output file (synthetic data set).",
        type=str,
     )
+    parser.add_argument(
+        "--random_seed",
+        "-seed",
+        #required=True,
+        help="The random seed to use.",
+        default=0,
+        type=int,
+    )
 
     args = parser.parse_args()
-    random_seed = 0
-    set_seed(random_seed)
+
+    # Set seed for replication
+    set_seed(args.random_seed)
 
     logger.info("Loading Hugging Face data set...")
     identifier = args.huggingface_dataset  # For example, 'allenai/c4'

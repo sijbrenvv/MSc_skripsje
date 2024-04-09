@@ -430,10 +430,19 @@ if __name__ == "__main__":
         choices=["bleu", "chrf", "google_bleu", "meteor"],
         default="bleu"
     )
+    parser.add_argument(
+        "--random_seed",
+        "-seed",
+        #required=True,
+        help="The random seed to use.",
+        default=0,
+        type=int,
+    )
 
     args = parser.parse_args()
-    random_seed = 0
-    set_seed(random_seed)
+
+    # Set seed for replication
+    set_seed(args.random_seed)
     train_path = args.train_file_path  # For example, 'test_samples.tsv'
     #prediction_path = args.prediction_file_path  # For example, 'test_predictions.jsonl'
     model = args.huggingface_model  # For example, 'google/flan-t5-small'

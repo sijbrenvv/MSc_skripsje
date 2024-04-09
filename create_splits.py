@@ -33,12 +33,19 @@ if __name__ == "__main__":
         help="Path where to save the data splits.",
         type=str,
     )
+    parser.add_argument(
+        "--random_seed",
+        "-seed",
+        #required=True,
+        help="The random seed to use.",
+        default=0,
+        type=int,
+    )
 
     args = parser.parse_args()
 
     # Set seed for replication
-    random_seed = 0
-    set_seed(random_seed)
+    set_seed(args.random_seed)
 
     #df = pd.read_csv(args.csv_path, sep=',', names=["Source", "Target"], header=0)
     #df.to_csv(args.output_file, sep='\t', encoding='utf-8', index=False)
