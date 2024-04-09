@@ -1,6 +1,6 @@
 import argparse
 import sys
-
+import os
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from transformers import (
@@ -41,20 +41,22 @@ if __name__ == "__main__":
     #df.to_csv(args.output_file_path, sep='\t', encoding='utf-8', index=False)
 
     # Read the aphasic data and add the label = 1
-    aphasic_df = pd.read_json(args.aphasic_data)
+    aphasic_df = pd.read_json(args.aphasic_data, lines=True)
     aphasic_df["label"] = 1
     # If the data is synthetic, rename the column name to 'text'
-    if aphasic_df["synthetic"]:
+    if "synthetic" in aphasic_df.columns:
         aphasic_df.rename(columns={"synthetic": "text"}, inplace=True)
+
     # If the data is authentic, rename the column name to 'text'
-    elif aphasic_df["preprocessed_text"]:
+    elif "preprocessed_text" in aphasic_df.columns:
         aphasic_df.rename(columns={"preprocessed_text": "text"}, inplace=True)
+
     # We only need the text and label columns for the classifier
     aphasic_df = aphasic_df[["text", "label"]]
     print(f"Aphasic dataframe shape: {aphasic_df.shape}", file=sys.stderr)
 
     # Read the healthy data and add the label = 0
-    healthy_df = pd.read_json(args.healthy_data)
+    healthy_df = pd.read_json(args.healthy_data, lines=True)
     healthy_df["label"] = 0
     # The healthy data is always authentic
     healthy_df.rename(columns={"preprocessed_text": "text"}, inplace=True)
@@ -62,7 +64,13 @@ if __name__ == "__main__":
     healthy_df = healthy_df[["text", "label"]]
     print(f"Healthy dataframe shape: {healthy_df.shape}", file=sys.stderr)
 
-    data_df = pd.concat([aphasic_df, healthy_df])
+    # Concatenate and balance the data \
+    # The healthy dataframe is much larger than the aphasic one
+    # Get the smallest df size and use that potion of the healthy df
+    min_length = min(len(aphasic_df), len(healthy_df))
+    data_df = pd.concat([aphasic_df, healthy_df.head(min_length)])
+    #data_df = pd.concat([aphasic_df, healthy_df])
+
     # No shuffle needed as train_test_split will shuffle by default
     train_df, val_df = train_test_split(
             data_df,
@@ -71,5 +79,6 @@ if __name__ == "__main__":
         )
 
     # Output splits to the predefined folder
-    train_df.to_json(args.output_file_path + "train", orient="records", lines=True)
-    val_df.to_json(args.output_file_path + "dev", orient="records", lines=True)
+    os.makedirs(args.output_file_path, exist_ok=True)
+    train_df.to_json(os.path.join(args.output_file_path, "train.json"), orient="records", lines=True)
+    val_df.to_json(os.path.join(args.output_file_path, "dev.json"), orient="records", lines=True)
