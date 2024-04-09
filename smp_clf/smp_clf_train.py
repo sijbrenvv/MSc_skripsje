@@ -103,10 +103,16 @@ def main() -> None:
 
     # Save the model
     logger.info("Saving model...")
-    #output_path = os.path.join(args.output_dir, "model.pkl")
+    output_path = os.path.join(args.output_file, "model.pkl")
     os.makedirs(args.output_file, exist_ok=True)
-    joblib.dump(model, args.output_file)
-    logger.info(f"Model saved to: {args.output_file}")
+    joblib.dump(model, output_path)
+    logger.info(f"Model saved to: {output_path}")
+
+    # Save the vectorizer
+    logger.info("Saving vectoriser...")
+    output_path = os.path.join(args.output_file, "vectorizer.pkl")
+    joblib.dump(vectorizer, output_path)
+    logger.info(f"Vectoriser saved to: {output_path}")
 
 
 if __name__ == "__main__":
