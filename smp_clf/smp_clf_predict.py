@@ -67,8 +67,15 @@ def main() -> None:
         raise FileNotFoundError(f"Model file '{args.model}' not found.")
     model = joblib.load(args.model)
 
+    # Load the corresponding vectoriser
+    logger.info("Loading corresponding vectoriser...")
+    #if not os.path.exists(args.model):
+    #    raise FileNotFoundError(f"Model file '{args.model}' not found.")
+    vectorizer = joblib.load(args.model.replace("model", "vectorizer"))
+
     # Use the loaded model to predict on dev data
     logger.info("Making predictions...")
+    X_dev = vectorizer.transform(X_dev)
     y_pred = model.predict(X_dev)
 
     # Save predictions to predefined output file
