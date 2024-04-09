@@ -453,21 +453,21 @@ if __name__ == "__main__":
         raise ValueError(f"File doesnt exists: {train_path}")
 
     # Get the data for the train and test sets
-    train_df, val_df = get_data(train_path, random_seed)
-    #gen_comp_zero = zero_shot(val_df, model_path=model, random_seed=random_seed)
-    #gen_comp_k = k_shot(train_df,val_df,model_path=model,random_seed=random_seed,k=1)
+    train_df, val_df = get_data(train_path, args.random_seed)
+    #gen_comp_zero = zero_shot(val_df, model_path=model, random_seed=args.random_seed)
+    #gen_comp_k = k_shot(train_df,val_df,model_path=model,random_seed=args.random_seed,k=1)
 
     # Train completion model
     fine_tune(  # Add 'valid_df' as argument when there is a test set
         train_data=train_df,
-        checkpoints_path=f"models/{model}/{random_seed}",
+        checkpoints_path=f"models/{model}/{args.random_seed}",
         model_path=model,
         eval_metric=eval_metric,
-        random_seed=random_seed
+        random_seed=args.random_seed
     )
 
     # Test completion model
-    gen_comp_ft = test(test_df=val_df, best_model_path=f"models/{model}/{random_seed}/best/")
+    gen_comp_ft = test(test_df=val_df, best_model_path=f"models/{model}/{args.random_seed}/best/")
     eval_sc = evaluate_comp(gen_comp=gen_comp_ft, tar_comp=val_df['Target'].to_list())
 
     output_df = pd.DataFrame({

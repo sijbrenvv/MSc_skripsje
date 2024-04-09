@@ -89,7 +89,7 @@ if __name__ == "__main__":
     train_df, val_df = train_test_split(
             data_df,
             test_size=0.2,
-            random_state=random_seed,
+            random_state=args.random_seed,
         )
 
     # Output splits to the predefined folder
