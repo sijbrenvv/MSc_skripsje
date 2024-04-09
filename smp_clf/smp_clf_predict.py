@@ -2,40 +2,22 @@ import argparse
 import json
 import pandas as pd
 import numpy as np
-from transformers import (
-    set_seed,
-)
-
+from transformers import set_seed
+import joblib
 
 def get_data(file_path):
-    """Function to read dataframe with columns"""
-    #"""Function to read the tsv"""
-    #train_df = pd.read_csv(train_path, sep='\t', names=['Source', 'Target'], header=0)
-
-    #train_df, val_df = train_test_split(
-    #    train_df,
-    #    test_size=0.2,
-    #    random_state=random_seed,
-    #)
-
-    #return train_df, val_df
-
+    """
+    Function to read dataframe with columns.
+    Args:
+        file_path (str): Path to the file containing the data.
+    Returns:
+        lists: A list containing the text and a list containing the label columns.
+    """
     file_df = pd.read_json(file_path, lines=True)
-    return file_df["text"], file_path["label"]
-    #test_df = pd.read_json(test_path, lines=True)
-
-    #train_df, val_df = train_test_split(
-    #    train_df,
-    #    test_size=0.2,
-    #    #stratify=train_df["label"],
-    #    random_state=random_seed,
-    #)
-
-    #return train_df, val_df, test_df
+    return file_df["text"], file_df["label"]
 
 
 def main() -> None:
-
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "-m",
@@ -44,7 +26,7 @@ def main() -> None:
         help="Name of file containing a trained model",
     )
     parser.add_argument(
-        "-in",
+        "-inp",
         "--input_file",
         type=str,
         help="Input file containing data",
@@ -62,15 +44,17 @@ def main() -> None:
     # Get the dev data
     X_dev, _y_dev = get_data(args.input_file)
 
-    # Get the trained model
-    model = args.model_file
+    # Load the trained model
+    model = joblib.load(args.model)
 
-    # Use trained model to predict on dev data
+    # Use the loaded model to predict on dev data
     y_pred = model.predict(X_dev)
 
     # Save predictions to predefined output file
     with open(args.output_file, "w") as file:
-        file.write("\n".join(y_pred))
+        file.write("\n".join(map(str, y_pred)))
 
 
-main()
+if __name__ == "__main__":
+    main()
+
