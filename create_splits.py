@@ -1,11 +1,14 @@
 import argparse
-import sys
-import os
 import pandas as pd
 from sklearn.model_selection import train_test_split
-from transformers import (
-    set_seed,
-)
+from transformers import set_seed
+import logging
+import os
+
+# Use Python logging for logging messages
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -24,7 +27,7 @@ if __name__ == "__main__":
         type=str,
     )
     parser.add_argument(
-        "--output_file_path",
+        "--output_file",
         "-out",
         required=True,
         help="Path where to save the data splits.",
@@ -38,9 +41,10 @@ if __name__ == "__main__":
     set_seed(random_seed)
 
     #df = pd.read_csv(args.csv_path, sep=',', names=["Source", "Target"], header=0)
-    #df.to_csv(args.output_file_path, sep='\t', encoding='utf-8', index=False)
+    #df.to_csv(args.output_file, sep='\t', encoding='utf-8', index=False)
 
     # Read the aphasic data and add the label = 1
+    logger.info("Loading and processing aphasic data...")
     aphasic_df = pd.read_json(args.aphasic_data, lines=True)
     aphasic_df["label"] = 1
     # If the data is synthetic, rename the column name to 'text'
@@ -53,16 +57,19 @@ if __name__ == "__main__":
 
     # We only need the text and label columns for the classifier
     aphasic_df = aphasic_df[["text", "label"]]
-    print(f"Aphasic dataframe shape: {aphasic_df.shape}", file=sys.stderr)
+    logger.info(f"Aphasic dataframe shape: {aphasic_df.shape}")
 
     # Read the healthy data and add the label = 0
+    logger.info("Loading and processing control data...")
     healthy_df = pd.read_json(args.healthy_data, lines=True)
     healthy_df["label"] = 0
+
     # The healthy data is always authentic
     healthy_df.rename(columns={"preprocessed_text": "text"}, inplace=True)
+
     # We only need the text and label columns for the classifier
     healthy_df = healthy_df[["text", "label"]]
-    print(f"Healthy dataframe shape: {healthy_df.shape}", file=sys.stderr)
+    logger.info(f"Healthy dataframe shape: {healthy_df.shape}")
 
     # Concatenate and balance the data \
     # The healthy dataframe is much larger than the aphasic one
@@ -79,6 +86,9 @@ if __name__ == "__main__":
         )
 
     # Output splits to the predefined folder
-    os.makedirs(args.output_file_path, exist_ok=True)
-    train_df.to_json(os.path.join(args.output_file_path, "train.json"), orient="records", lines=True)
-    val_df.to_json(os.path.join(args.output_file_path, "dev.json"), orient="records", lines=True)
+    logger.info("Outputting splits to predefined folders...")
+    os.makedirs(args.output_file, exist_ok=True)
+    train_df.to_json(os.path.join(args.output_file, "train.json"), orient="records", lines=True)
+    logger.info(f"Train split saved to: {os.path.join(args.output_file, 'train.json')}")
+    val_df.to_json(os.path.join(args.output_file, "dev.json"), orient="records", lines=True)
+    logger.info(f"Validation split saved to: {os.path.join(args.output_file, 'dev.json')}")
