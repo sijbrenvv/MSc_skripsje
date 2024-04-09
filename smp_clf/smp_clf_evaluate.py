@@ -69,7 +69,7 @@ def main() -> None:
     try:
         X_dev, y_dev = get_data(args.test_data)
         with open(args.prediction_data) as file:
-            y_pred = [line.strip() for line in file]
+            y_pred = [int(line.strip()) for line in file]
     except Exception as e:
         logging.error(f"Error loading data: {e}")
         return
@@ -88,7 +88,7 @@ def main() -> None:
         confusion_matrix(
             y_dev,
             y_pred,
-            labels=list(id2label.values()),
+            #labels=list(id2label.values()),
         )
     )
 
