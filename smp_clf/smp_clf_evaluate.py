@@ -4,7 +4,11 @@ import pandas as pd
 from sklearn.metrics import classification_report, confusion_matrix
 from transformers import set_seed
 import logging
+import os
 
+# Use Python logging for logging messages
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 def get_data(file_path):
     """
@@ -44,12 +48,14 @@ def main() -> None:
     set_seed(random_seed)
 
     # Define class labels
+    logger.info("Defining labels...")
     id2label = {
         0: "Healthy",
         1: "Aphasic",
     }
 
     # Load test data and predictions
+    logger.info("Loading test data and predictions...")
     try:
         X_dev, y_dev = get_data(args.test_data)
         with open(args.prediction_data) as file:
@@ -59,6 +65,7 @@ def main() -> None:
         return
 
     # Evaluate predictions
+    logger.info("Evaluating predictions...")
     print(
         classification_report(
             y_dev,
