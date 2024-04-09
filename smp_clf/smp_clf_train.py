@@ -75,7 +75,7 @@ def main() -> None:
         "SVC": LinearSVC(),
         "SVM": SVC(kernel="rbf"),
         "DT": DecisionTreeClassifier(),
-        "RF": RandomForestClassifier(n_jobs=-1, random_state=random_seed),
+        "RF": RandomForestClassifier(n_jobs=-1, random_state=args.random_seed),
         "NB": MultinomialNB(),
     }
 
