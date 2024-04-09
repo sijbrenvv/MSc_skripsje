@@ -1,38 +1,21 @@
 import argparse
 import json
 import pandas as pd
-import numpy as np
 from sklearn.metrics import classification_report, confusion_matrix
-from transformers import (
-    set_seed,
-)
+from transformers import set_seed
+import logging
 
 
 def get_data(file_path):
-    """Function to read dataframe with columns"""
-    #"""Function to read the tsv"""
-    #train_df = pd.read_csv(train_path, sep='\t', names=['Source', 'Target'], header=0)
-
-    #train_df, val_df = train_test_split(
-    #    train_df,
-    #    test_size=0.2,
-    #    random_state=random_seed,
-    #)
-
-    #return train_df, val_df
-
+    """
+    Function to read dataframe with columns.
+    Args:
+        file_path (str): Path to the file containing the data.
+    Returns:
+        lists: A list containing the text and a list containing the label columns.
+    """
     file_df = pd.read_json(file_path, lines=True)
-    return file_df["text"], file_path["label"]
-    #test_df = pd.read_json(test_path, lines=True)
-
-    #train_df, val_df = train_test_split(
-    #    train_df,
-    #    test_size=0.2,
-    #    #stratify=train_df["label"],
-    #    random_state=random_seed,
-    #)
-
-    #return train_df, val_df, test_df
+    return file_df["text"], file_df["label"]
 
 
 def main() -> None:
@@ -60,17 +43,20 @@ def main() -> None:
     random_seed = 0
     set_seed(random_seed)
 
+    # Define class labels
     id2label = {
         0: "Healthy",
         1: "Aphasic",
     }
 
-    # Get the dev data
-    _X_dev, y_dev = get_data(args.test_data)
-
-    # Get trained model's predictions
-    with open(args.prediction_data) as file:
-        y_pred = [line.strip() for line in file]
+    # Load test data and predictions
+    try:
+        X_dev, y_dev = get_data(args.test_data)
+        with open(args.prediction_data) as file:
+            y_pred = [line.strip() for line in file]
+    except Exception as e:
+        logging.error(f"Error loading data: {e}")
+        return
 
     # Evaluate predictions
     print(
@@ -89,10 +75,9 @@ def main() -> None:
         )
     )
 
-
     # Save predictions to predefined output file
     #with open(args.output_file, "w") as file:
     #    file.write("\n".join(y_pred))
 
-
-main()
+if __name__ == "__main__":
+    main()
