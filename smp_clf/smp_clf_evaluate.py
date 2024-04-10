@@ -1,10 +1,11 @@
 import argparse
 import json
 import pandas as pd
-from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.metrics import classification_report, confusion_matrix, accuracy_score, ConfusionMatrixDisplay
 from transformers import set_seed
 import logging
 import os
+import matplotlib.pyplot as plt
 
 # Use Python logging for logging messages
 logging.basicConfig(level=logging.INFO)
@@ -76,6 +77,7 @@ def main() -> None:
 
     # Evaluate predictions
     logger.info("Evaluating predictions...")
+    print(f"Accuracy: {accuracy_score(y_dev, y_pred)}")
     print(
         classification_report(
             y_dev,
@@ -84,13 +86,15 @@ def main() -> None:
             target_names=list(id2label.values()),
         )
     )
-    print(
-        confusion_matrix(
-            y_dev,
-            y_pred,
-            #labels=list(id2label.values()),
-        )
-    )
+    print(pd.crosstab(y_dev, y_pred, rownames=['True'], colnames=['Predicted'], margins=True))
+    #print(
+    #    confusion_matrix(
+    #        y_dev,
+    #        y_pred,
+    #        #labels=list(id2label.values()),
+    #        labels=list(id2label.keys()),
+    #    )
+    #)
 
     # Save predictions to predefined output file
     #with open(args.output_file, "w") as file:
