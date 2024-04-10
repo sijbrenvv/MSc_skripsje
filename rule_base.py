@@ -1,9 +1,6 @@
 import argparse
 import shutil
 import sys
-from pathlib import Path
-from typing import Any
-import nltk
 import numpy as np
 import spacy
 import spacy_stanza
@@ -14,8 +11,6 @@ import string
 from datasets import Dataset, concatenate_datasets, interleave_datasets, load_dataset
 from spacy.matcher import Matcher
 from spacy.util import filter_spans
-from sklearn.metrics.pairwise import cosine_similarity
-from sklearn.model_selection import train_test_split
 from spacy.cli.download import download
 from stanza import Pipeline
 from collections import Counter
@@ -339,7 +334,7 @@ if __name__ == "__main__":
     # Export dataset
     logger.info("Exporting the synthetic data set...")
     os.makedirs(args.output_file_path, exist_ok=True)
-    syn_dataset.to_csv(args.output_file_path + ".csv", index=False, sep=',')
-    syn_dataset.to_json(os.path.join(args.output_file_path, ".json"), orient="records", lines=True)
-    logger.info(f"Data set saved to: {os.path.join(args.output_file_path, '.json')}")
+    syn_dataset.to_csv(os.path.join(args.output_file_path, "syn_data.csv"), index=False, sep=',')
+    syn_dataset.to_json(os.path.join(args.output_file_path, "syn_data.json"), orient="records", lines=True)
+    logger.info(f"Data set saved to: {os.path.join(args.output_file_path, 'syn_data.json')}")
 
