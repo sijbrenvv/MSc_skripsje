@@ -55,6 +55,8 @@ if __name__ == "__main__":
     #df.to_csv(args.output_file, sep='\t', encoding='utf-8', index=False)
 
     # Read the aphasic data and add the label = 1
+    if not os.path.exists(args.aphasic_data):
+        raise FileNotFoundError(f"Aphasic data file '{args.aphasic_data}' not found.")
     logger.info("Loading and processing aphasic data...")
     aphasic_df = pd.read_json(args.aphasic_data, lines=True)
     aphasic_df["label"] = 1
@@ -71,6 +73,8 @@ if __name__ == "__main__":
     logger.info(f"Aphasic dataframe shape: {aphasic_df.shape}")
 
     # Read the healthy data and add the label = 0
+    if not os.path.exists(args.healthy_data):
+        raise FileNotFoundError(f"Control data file '{args.healthy_data}' not found.")
     logger.info("Loading and processing control data...")
     healthy_df = pd.read_json(args.healthy_data, lines=True)
     healthy_df["label"] = 0

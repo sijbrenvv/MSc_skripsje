@@ -34,7 +34,7 @@ def main() -> None:
         "-t",
         "--test_data",
         type=str,
-        help="File containing test data (gold standards)",
+        help="File containing test data",
     )
     parser.add_argument(
         "-p",
@@ -70,6 +70,11 @@ def main() -> None:
     }
 
     # Load test data and predictions
+    if not os.path.exists(args.test_data):
+        raise FileNotFoundError(f"Test data file '{args.test_data}' not found.")
+    if not os.path.exists(args.prediction_data):
+        raise FileNotFoundError(f"Prediction data file '{args.prediction_data}' not found.")
+
     logger.info("Loading test data and predictions...")
     try:
         X_dev, y_dev = get_data(args.test_data)

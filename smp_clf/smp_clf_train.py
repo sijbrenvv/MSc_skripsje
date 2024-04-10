@@ -72,6 +72,8 @@ def main() -> None:
     set_seed(args.random_seed)
 
     # Get the train data
+    if not os.path.exists(args.train_file):
+        raise FileNotFoundError(f"Train file '{args.train_file}' not found.")
     logger.info("Loading the train data...")
     X_train, y_train = get_data(args.train_file)
 
