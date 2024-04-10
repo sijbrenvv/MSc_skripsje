@@ -4,6 +4,10 @@ from sklearn.model_selection import train_test_split
 from transformers import set_seed
 import logging
 import os
+import warnings
+
+warnings.simplefilter(action='ignore', category=FutureWarning)
+warnings.simplefilter(action='ignore', category=UserWarning)
 
 # Use Python logging for logging messages
 logging.basicConfig(level=logging.INFO)
@@ -81,8 +85,8 @@ if __name__ == "__main__":
     # Concatenate and balance the data \
     # The healthy dataframe is much larger than the aphasic one
     # Get the smallest df size and use that potion of the healthy df
-    min_length = min(len(aphasic_df), len(healthy_df))
-    data_df = pd.concat([aphasic_df, healthy_df.head(min_length)])
+    min_length = min(len(aphasic_df.index), len(healthy_df.index))
+    data_df = pd.concat([aphasic_df.head(min_length), healthy_df.head(min_length)])
     #data_df = pd.concat([aphasic_df, healthy_df])
 
     # No shuffle needed as train_test_split will shuffle by default

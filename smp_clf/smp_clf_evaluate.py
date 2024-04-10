@@ -6,6 +6,10 @@ from transformers import set_seed
 import logging
 import os
 import matplotlib.pyplot as plt
+import warnings
+
+warnings.simplefilter(action='ignore', category=FutureWarning)
+warnings.simplefilter(action='ignore', category=UserWarning)
 
 # Use Python logging for logging messages
 logging.basicConfig(level=logging.INFO)
