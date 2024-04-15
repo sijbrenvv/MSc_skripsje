@@ -261,11 +261,10 @@ def make_synthetic(example, **fn_kwargs):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--huggingface_dataset",
-        "-hd",
-        help="Name of the model on HuggingFace. Default: 'datablations/c4-filter-small'",
-        #default="datablations/c4-filter-small",
-        default="NeelNanda/c4-10k",
+        "--input_file_path",
+        "-inp",
+        help="Path to the input data (normal sentences to make aphasic)",
+        required=True,
         type=str,
     )
     parser.add_argument(
@@ -283,25 +282,46 @@ if __name__ == "__main__":
         default=0,
         type=int,
     )
+    parser.add_argument(
+        "--huggingface_dataset",
+        "-hd",
+        # required=True,
+        help="Whether the input data is a HuggingFace identifier.",
+        default=False,
+        type=bool,
+    )
 
     args = parser.parse_args()
 
     # Set seed for replication
     set_seed(args.random_seed)
 
-    logger.info("Loading Hugging Face data set...")
-    identifier = args.huggingface_dataset  # For example, 'allenai/c4'
-    #dataset = load_dataset(identifier, "en", streaming=True)
-    dataset = load_dataset(identifier)
-    #logger.info(dataset, file=sys.stderr)
+    if args.huggingface_dataset:
+        logger.info("Loading Hugging Face data set...")
+        identifier = args.input_file_path  # For example, 'allenai/c4'
+        #dataset = load_dataset(identifier, "en", streaming=True)
+        dataset = load_dataset(identifier)
+        #logger.info(dataset, file=sys.stderr)
 
-    # We are only interested in the text column
-    column_names = dataset["train"].column_names
+        # We are only interested in the text column
+        column_names = dataset["train"].column_names
 
-    # Remove all columns except the first one: the 'text' column
-    dataset = dataset["train"].remove_columns(column_names[1:])
-    #logger.info(dataset, file=sys.stderr)
+        # Remove all columns except the first one: the 'text' column
+        dataset = dataset["train"].remove_columns(column_names[1:])
+        #logger.info(dataset, file=sys.stderr)
 
+    if not os.path.exists(args.input_file_path):
+        raise FileNotFoundError(f"CSV or JSON input file '{args.input_file_path}' not found.\n Did you forget to set -hd to True when using a HF data set?")
+
+    # Check is the provided path has an extension
+    if os.path.splitext(args.input_file_path)[1] == "":
+        raise Exception(f"'{args.input_file_path}' contains no extension. Please provide a JSON or CSV file.")
+
+    if args.input_file_path.endswith(".csv"):
+        dataset = Dataset.from_csv(args.input_file_path)
+    elif args.input_file_path.endswith(".json"):
+        dataset = Dataset.from_json(args.input_file_path)
+        #?dataset = load_dataset('json', data_files=args.input_file_path)
 
     # Create dictionary for the sentences to keep
     ks_dict = {"text": []}

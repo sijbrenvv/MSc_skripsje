@@ -19,7 +19,8 @@ bkp=${exp_fol}/bkp/
 mkdir -p $exp_fol $log $out $mod $bkp
 
 # Call rule_base.py to create synthetic aphasic data
-python3 rule_base.py -out "${exp_fol}/out/" #> ${log}rb
+# To create synthetic data of the control data use: -inp "data/Control/control_broca_processed.json"
+python3 rule_base.py -inp "data/SBCSAE/sbcsae_broca_processed.json" -out "${exp_fol}/out/" #> ${log}rb
 
 # Define synthetic data
 syn_data="${exp_fol}/out/syn_data.json"

@@ -481,4 +481,5 @@ if __name__ == "__main__":
     })
 
     # Export dataframe
-    output_df.to_csv(args.output_file_path, index=False, sep='\t')
+    output_df.to_csv(args.output_file_path + ".csv", index=False, sep=',')
+    output_df.to_json(args.output_file_path + ".json", orient="records", lines=True)
