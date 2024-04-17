@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Experiment folder is a command line argument
-exp_fol="exp/rule_base/$1"
+exp_fol="exp/rule_base/control/$1"
 
 # Check if folder already exists, if so, exit, if not, continue
 if [ -d "$exp_fol" ]; then
