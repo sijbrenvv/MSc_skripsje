@@ -1,19 +1,14 @@
 import argparse
-import shutil
-import sys
-import numpy as np
 import spacy
 import spacy_stanza
 import spacy_udpipe
 import stanza
 import random
 import string
-from datasets import Dataset, concatenate_datasets, interleave_datasets, load_dataset
+from datasets import Dataset, load_dataset
 from spacy.matcher import Matcher
 from spacy.util import filter_spans
 from spacy.cli.download import download
-from stanza import Pipeline
-from collections import Counter
 from transformers import set_seed
 import logging
 import os
@@ -25,10 +20,6 @@ warnings.simplefilter(action='ignore', category=UserWarning)
 # Use Python logging for logging messages
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-
-def preprocess(dataset):
-    """ """
 
 
 def download_spacy_language_model(model_name, enable=None):
@@ -43,7 +34,6 @@ def download_spacy_language_model(model_name, enable=None):
         spacy.Language: Loaded Spacy language model.
     """
     # The spacy language model is not needed at the moment (for the sentences to keep)
-    # Add the enable parameter: ref: https://github.com/Darwinkel/shared-task-semeval2024/blob/main/get_features.py
     if enable:
         try:
             return spacy.load(model_name, enable=enable)
@@ -101,8 +91,6 @@ def symbol_check(text):
     #        return True
     #return False
 
-    #return [True if symbol in text else False for symbol in string.punctuation]
-
 
 def nb_np_vp(sen):
     """ This function return the number of noun and verb phrases
@@ -126,7 +114,7 @@ def nb_np_vp(sen):
     matcher = Matcher(nlp.vocab)
     # Add pattern to matcher
     matcher.add("verb-phrases", [patterns])
-    # call the matcher to find matches
+    # Call the matcher to find matches
     matches = matcher(sen)
     spans = [sen[start:end] for _, start, end in matches]
     #logger.info(f"{filter_spans(spans)}")
@@ -141,7 +129,8 @@ def keep_sentences(example, **fn_kwargs):
 
     Args:
         example (DatasetDict): Huggingface Dataset object containing the example.
-        fn_kwargs (dict): Additional keyword arguments, including 'udpipe' for the language model.
+        fn_kwargs: Additional keyword arguments, including 'udpipe' for the language model.
+        Data type for 'fn_kwargs' is not mentioned, because it is not compatible with the code.
 
     Returns:
         string: String containing the sentence to keep.
@@ -154,7 +143,7 @@ def keep_sentences(example, **fn_kwargs):
         # Else keep it
 
     # Parse the text
-    doc = fn_kwargs["udpipe"](example["text"])  # If this line crashes, modify docstring (fn_kwargs arg)
+    doc = fn_kwargs["udpipe"](example["preprocessed_text"])  # If this line crashes, modify docstring (fn_kwargs arg)
 
     for sen in doc.sents:
         sen_text = sen.text
@@ -170,7 +159,7 @@ def keep_sentences(example, **fn_kwargs):
             #logger.info(f"{nb_vp = }")
             if nb_vp == 0:
                 continue
-            if nb_np / nb_vp > 2:
+            elif nb_np / nb_vp > 2:
                 if random.random() < .80:
                     # Go to the next iteration, in other words, discard sentence
                     continue
@@ -185,7 +174,8 @@ def keep_sentences(example, **fn_kwargs):
                 #fn_kwargs["ks_dict"["text_doc"] = sen
 
     #logger.info(f"{len(ks_dict)}")
-    #logger.info('Kept sentences dataset:', fn_kwargs["ks_dict"])
+    #logger.info(f'Kept sentences dataset: {list(fn_kwargs["ks_dict"].values())}')
+    #logger.info(f'{fn_kwargs["ks_dict"] = }')
 
     return fn_kwargs["ks_dict"]
 
@@ -196,7 +186,8 @@ def make_synthetic(example, **fn_kwargs):
 
     Args:
         example (DatasetDict): Huggingface Dataset object containing the example.
-        fn_kwargs (dict): Additional keyword arguments, including 'udpipe' for the language model.
+        fn_kwargs: Additional keyword arguments, including 'udpipe' for the language model.
+        Data type for 'fn_kwargs' is not mentioned, because it is not compatible with the code.
 
     Returns:
         dict: Dictionary containing the synthetic and original sentences.
@@ -254,7 +245,7 @@ def make_synthetic(example, **fn_kwargs):
 
     # Store the synthetic and original sentences in the output dictionary
     fn_kwargs["syn_dict"]["synthetic"] = temp_syn_sent[1:]  # Ignore the leading space
-    fn_kwargs["syn_dict"]["original"] = example["text"]
+    fn_kwargs["syn_dict"]["original"] = example["preprocessed_text"]
 
     return fn_kwargs["syn_dict"]
 
@@ -324,19 +315,23 @@ if __name__ == "__main__":
         #?dataset = load_dataset('json', data_files=args.input_file_path)
 
     # Create dictionary for the sentences to keep
-    ks_dict = {"text": []}
+    ks_dict = {"text": ""}
     # Get the udpipe model: nlp = download_spacy_stanza_pipeline()
     logger.info("Loading the udpipe model...")
     nlp = download_spacy_stanza_pipeline()
 
     # Get all the sentences we want to keep and process further
     logger.info("Retrieving the sentences we want to keep and process further...")
-    updated_dataset = dataset.select(range(1000)).map(
+    keep_dataset = dataset.select(range(1000)).map(
         keep_sentences,
         #batched=True,
         fn_kwargs={"ks_dict": ks_dict, "udpipe": nlp},
     )
-    #logger.info(updated_dataset, file=sys.stderr)
+
+    # Filter dataset: remove unkept sentences
+    temp_df = keep_dataset.to_pandas()
+    filtered_df = temp_df.drop_duplicates(subset=["text"])
+    updated_dataset = Dataset.from_pandas(filtered_df)
 
     # Create dictionary for the synthetic aphasic sentence and the original one
     syn_dict = {"synthetic": [], "original": []}
@@ -346,10 +341,8 @@ if __name__ == "__main__":
     syn_dataset = updated_dataset.map(
         make_synthetic,
         fn_kwargs={"syn_dict": syn_dict, "udpipe": nlp},
-        remove_columns=["text"],
+        remove_columns=["text", "__index_level_0__"],
     )
-    #logger.info(syn_dataset, file=sys.stderr)
-    #logger.info(syn_dataset[:10])
 
     # Export dataset
     logger.info("Exporting the synthetic data set...")
