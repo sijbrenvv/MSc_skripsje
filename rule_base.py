@@ -322,7 +322,8 @@ if __name__ == "__main__":
 
     # Get all the sentences we want to keep and process further
     logger.info("Retrieving the sentences we want to keep and process further...")
-    keep_dataset = dataset.select(range(1000)).map(
+    # keep_dataset = dataset.select(range(1000)).map(
+    keep_dataset = dataset.map(
         keep_sentences,
         #batched=True,
         fn_kwargs={"ks_dict": ks_dict, "udpipe": nlp},
