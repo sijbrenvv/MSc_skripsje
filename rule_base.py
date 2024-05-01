@@ -125,7 +125,7 @@ def nb_np_vp(sen):
 
 def keep_sentences(example, **fn_kwargs):
     """
-    Extract sentences from the example text and filter based on length, symbols, and noun-verb phrase ratio.
+    Extract sentences from the example text and filter based on length, symbols and noun-verb phrase ratio.
 
     Args:
         example (DatasetDict): Huggingface Dataset object containing the example.
@@ -222,7 +222,7 @@ def make_synthetic(example, **fn_kwargs):
 
         # Apply different probabilities for token removal based on part-of-speech tags
         if pos in {"DET", "ADP", "PART"}:
-            if random.random() < .90:
+            if random.random() < .70:
                 continue
             else:
                 temp_syn_sent += " " + token.text
@@ -232,7 +232,10 @@ def make_synthetic(example, **fn_kwargs):
             else:
                 temp_syn_sent += " " + token.text
         elif pos in {"AUX", "VERB"}:
-            temp_syn_sent += " " + token.lemma_
+            if random.random() < .50:
+                continue
+            else:
+                temp_syn_sent += " " + token.lemma_
         elif pos in {"PUNCT"}:
             temp_syn_sent += token.text
         else:
@@ -243,9 +246,17 @@ def make_synthetic(example, **fn_kwargs):
     #logger.info(f"{temp_syn_sent[1:]}")
     #logger.info(f"Original sentence: {example['text']}")
 
-    # Store the synthetic and original sentences in the output dictionary
-    fn_kwargs["syn_dict"]["synthetic"] = temp_syn_sent[1:]  # Ignore the leading space
-    fn_kwargs["syn_dict"]["original"] = example["preprocessed_text"]
+    # Store the synthetic sentences in the output dictionary if the length requirement is met
+    syn_len = len(temp_syn_sent[1:].split())
+    org_len = len(example["preprocessed_text"].split())
+
+    if 1/3 * org_len <= syn_len <= 2/3 * org_len:
+        fn_kwargs["syn_dict"]["synthetic"] = temp_syn_sent[1:]  # Ignore the leading space
+    else:
+        fn_kwargs["syn_dict"]["synthetic"] = ""  # Use empty string as filter token
+
+    #fn_kwargs["syn_dict"]["synthetic"] = temp_syn_sent[1:]  # Ignore the leading space
+    #fn_kwargs["syn_dict"]["original"] = example["preprocessed_text"]
 
     return fn_kwargs["syn_dict"]
 
@@ -332,10 +343,11 @@ if __name__ == "__main__":
     # Filter dataset: remove unkept sentences
     temp_df = keep_dataset.to_pandas()
     filtered_df = temp_df.drop_duplicates(subset=["text"])
+    del temp_df
     updated_dataset = Dataset.from_pandas(filtered_df)
 
     # Create dictionary for the synthetic aphasic sentence and the original one
-    syn_dict = {"synthetic": [], "original": []}
+    syn_dict = {"synthetic": []}#, "original": []}
 
     # Create a synthetic aphasic sentence for each kept sentence
     logger.info("Generating synthetic aphasic sentences...")
@@ -344,6 +356,9 @@ if __name__ == "__main__":
         fn_kwargs={"syn_dict": syn_dict, "udpipe": nlp},
         remove_columns=["text", "__index_level_0__"],
     )
+
+    # Filter synthetic dataset: remove empty strings (sents which do not meet length requirement)
+    syn_dataset = syn_dataset.filter(lambda x: x["synthetic"] != "")#, input_columns=["synthetic"])
 
     # Export dataset
     logger.info("Exporting the synthetic data set...")
