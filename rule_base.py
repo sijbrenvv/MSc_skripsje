@@ -357,8 +357,10 @@ if __name__ == "__main__":
         remove_columns=["text", "__index_level_0__"],
     )
 
-    # Filter synthetic dataset: remove empty strings (sents which do not meet length requirement)
-    syn_dataset = syn_dataset.filter(lambda x: x["synthetic"] != "")#, input_columns=["synthetic"])
+    # Filter synthetic dataset: remove empty strings (sents which do not meet length requirement) \
+    # and remove two word utterances or less.
+    syn_dataset = syn_dataset.filter(lambda example: example["synthetic"] != "")#, input_columns=["synthetic"])
+    syn_dataset = syn_dataset.filter(lambda example: len(example["synthetic"].split()) >= 3)
 
     # Export dataset
     logger.info("Exporting the synthetic data set...")
