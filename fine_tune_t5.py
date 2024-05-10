@@ -548,6 +548,7 @@ if __name__ == "__main__":
     })
 
     # Export dataframe
+    os.makedirs(args.output_file_path, exist_ok=True)
     logger.info(f"Exporting dataframe to '{args.output_file_path}.[json|csv]'...")
     output_df.to_csv(args.output_file_path + ".csv", index=False, sep=',')
     output_df.to_json(args.output_file_path + ".json", orient="records", lines=True)
