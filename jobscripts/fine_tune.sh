@@ -15,20 +15,26 @@ source $HOME/venvs/master_thesis/bin/activate
 pip install --upgrade pip wheel setuptools
 pip install -r requirements.txt
 
-# move cached datasets to the /scratch directory
+# Move cached datasets to the /scratch directory
 export HF_DATASETS_CACHE="/scratch/$USER/.cache/huggingface/datasets"
 
-# move downloaded models and tokenizers to the /scratch directory
+# Move downloaded models and tokenizers to the /scratch directory
 export HF_HOME="/scratch/$USER/.cache/huggingface/hub"
 
+# The synthetic data source (Control or SBCSAE) is a command line argument
+data_source=$1
+
 # Bleu
-python3 model_behaviour.py -tr data/synthetic_clan.tsv -out exp/fine-tune_bleu.tsv -hf google/flan-t5-xxl -em bleu
+python3 fine_tune_t5.py -tr data/${data_source}/${data_source}_train.json -te data/${data_source}/${data_source}_test.json -out exp/${data_source}/fine-tune_bleu -hf google/flan-t5-xxl -em bleu
 
 # Meteor
-#python3 model_behaviour.py -tr data/synthetic_clan.tsv -out exp/fine-tune_meteor.tsv -hf google/flan-t5-xxl -em meteor
+#python3 fine_tune_t5.py -tr data/${data_source}/${data_source}_train.json -te data/${data_source}/${data_source}_test.json -out exp/${data_source}/fine-tune_meteor -hf google/flan-t5-xxl -em meteor
 
 # ChrF
-python3 model_behaviour.py -tr data/synthetic_clan.tsv -out exp/fine-tune_chrf.tsv -hf google/flan-t5-xxl -em chrf
+python3 fine_tune_t5.py -tr data/${data_source}/${data_source}_train.json -te data/${data_source}/${data_source}_test.json -out exp/${data_source}/fine-tune_chrf -hf google/flan-t5-xxl -em chrf
 
 # Google Bleu
-python3 model_behaviour.py -tr data/synthetic_clan.tsv -out exp/fine-tune_google_bleu.tsv -hf google/flan-t5-xxl -em google_bleu
+python3 fine_tune_t5.py -tr data/${data_source}/${data_source}_train.json -te data/${data_source}/${data_source}_test.json -out exp/${data_source}/fine-tune_google_bleu -hf google/flan-t5-xxl -em google_bleu
+
+# Backup scripts
+cp fine_tune_t5.py exp/${data_source}/
