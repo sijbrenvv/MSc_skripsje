@@ -47,18 +47,20 @@ def tokenize_function(examples, **fn_kwargs: dict[str:any]):
         truncation=True,
         return_tensors="pt")
 
-def get_data(train_path: str, test_path: str, random_seed: int) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def get_data(train_path: str, dev_path: str, test_path: str, random_seed: int) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
     Function to read dataframe with columns.
     Args:
         train_path (str): Path to the file containing the train data.
-        test_path (str): Path to the file containing the test data
+        dev_path (str): Path to the file containing the development/validation data.
+        test_path (str): Path to the file containing the test data.
     Returns:
         pd.Series, pd.Series: A series containing the source text and a series containing the target text.
     """
     #train_df = pd.read_csv(train_path, sep='\t', names=['Source', 'Target'], header=0)
     train_df = pd.read_json(train_path, lines=True)
     test_df = pd.read_json(test_path, lines=True)
+    val_df = pd.read_json(dev_path, lines=True)
 
     # Rename the columns of the data (train and test) from 'synthetic' and 'preprocessed_text' to 'Source' and 'Target' respectively
     train_df.rename(columns={"synthetic": "Source", "preprocessed_text": "Target"}, inplace=True)
@@ -66,13 +68,8 @@ def get_data(train_path: str, test_path: str, random_seed: int) -> tuple[pd.Data
 
     # We only need the 'Source' and 'Target' columns
     #train_df = train_df[["Source", "Target"]]
+    #val_df = val_df[["Source", "Target"]]
     #test_df = test_df[["Source", "Target"]]
-
-    train_df, val_df = train_test_split(
-        train_df,
-        test_size=0.2,
-        random_state=random_seed,
-    )
 
     return train_df, val_df, test_df
 
@@ -470,6 +467,13 @@ if __name__ == "__main__":
         type=str,
     )
     parser.add_argument(
+        "--dev_file_path",
+        "-dev",
+        required=True,
+        help="Path to the development/validation file.",
+        type=str,
+    )
+    parser.add_argument(
         "--output_file_path",
         "-out",
         required=True,
@@ -512,12 +516,13 @@ if __name__ == "__main__":
 
     train_path = args.train_file_path  # For example, 'train.json'
     test_path = args.test_file_path  # For example, 'test.json'
+    dev_path = args.dev_file_path  # For example, 'val.json'
     model = args.huggingface_model  # For example, 'google/flan-t5-small'
     eval_metric = args.eval_metric  # For example, 'bleu'
 
     # Get the data for the train and dev sets
     logger.info(f"Loading the data...")
-    train_df, val_df, test_df = get_data(train_path, test_path, args.random_seed)
+    train_df, val_df, test_df = get_data(train_path, dev_path, test_path, args.random_seed)
     #gen_comp_zero = zero_shot(val_df, model_path=model, random_seed=args.random_seed)
     #gen_comp_k = k_shot(train_df,val_df,model_path=model,random_seed=args.random_seed,k=1)
 
