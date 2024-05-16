@@ -65,6 +65,7 @@ def get_data(train_path: str, dev_path: str, test_path: str, random_seed: int) -
     # Rename the columns of the data (train and test) from 'synthetic' and 'preprocessed_text' to 'Source' and 'Target' respectively
     train_df.rename(columns={"synthetic": "Source", "preprocessed_text": "Target"}, inplace=True)
     test_df.rename(columns={"synthetic": "Source", "preprocessed_text": "Target"}, inplace=True)
+    val_df.rename(columns={"synthetic": "Source", "preprocessed_text": "Target"}, inplace=True)
 
     # We only need the 'Source' and 'Target' columns
     #train_df = train_df[["Source", "Target"]]
@@ -148,9 +149,14 @@ def compute_metrics(eval_pred, tokenizer, eval_metric: str) -> dict[str:float]:
 
     # Compute score
     results = {'metric': 0.0}
-    results.update(
-        {'metric': metric.compute(predictions=decoded_preds, references=decoded_labels)[metric_dic[eval_metric]]}
-    )
+    try:
+        results.update(
+            {'metric': metric.compute(predictions=decoded_preds, references=decoded_labels)[metric_dic[eval_metric]]}
+        )
+    except ZeroDivisionError:
+        results.update(
+            {'metric': 0.0}
+        )
 
     return results
 
@@ -266,8 +272,8 @@ def fine_tune(train_data: pd.DataFrame, valid_data: pd.DataFrame,  checkpoints_p
     # Get tokeniser and model from huggingface
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     if torch.cuda.is_available():
-        model = AutoModelForSeq2SeqLM.from_pretrained(model_path)  #, load_in_8bit=True)
-        batch_size = 16
+        model = AutoModelForSeq2SeqLM.from_pretrained(model_path, torch_dtype=torch.float16)  #   , load_in_8bit=True)
+        batch_size = 8
     else:
         model = AutoModelForSeq2SeqLM.from_pretrained(model_path)
         batch_size = 8
