@@ -5,6 +5,7 @@ import spacy_udpipe
 import stanza
 import random
 import string
+import numpy as np
 from datasets import Dataset, load_dataset
 from spacy.matcher import Matcher
 from spacy.util import filter_spans
@@ -13,6 +14,7 @@ from transformers import set_seed
 import logging
 import os
 import warnings
+from pattern.text.en import singularize, pluralize
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.simplefilter(action='ignore', category=UserWarning)
@@ -74,6 +76,61 @@ def download_spacy_stanza_pipeline():
             return model
 
 
+def det_sub(x):
+    """
+    Replace a possessive or demonstrative determiner by another random  appropriate determiner
+    Args:
+         x: The determiner to replace
+    Returns:
+        Randomly appropriate determiner
+    """
+    for _, det in dets.items():
+        if x.lower() in det:
+            y = [j for j in det if x!=j]
+            return random.choice(y)
+    return ""
+
+def count_pos(doc, length):
+    """"""
+
+    nouns = []
+    verbs = []
+    determiners = []
+    prepositions = []
+    adjectives = []
+    adverbs = []
+    interjections = []
+    open_close = np.random.gamma(shape=4.99415, scale=1 / 3.558095)
+    add = False
+
+    # count no. of respective POS
+    for tok in doc:
+        if tok.pos_ == "NOUN":
+            nouns.append(tok.text)
+        elif tok.pos_ == "VERB" or tok.dep_ == "cop" or tok.tag_ in ["VBD", "VBN"]:
+            verbs.append(tok.text)
+        # det:art and det:dem only
+        elif tok.dep_ == "det" and ("Dem" in tok.morph.get('PronType') or "Art" in tok.morph.get('PronType')):
+            determiners.append(tok.text)
+        elif tok.dep_ == "prep":
+            prepositions.append(tok.text)
+        elif tok.pos_ == "ADJ":
+            adjectives.append(tok.text)
+        elif tok.pos_ == "ADV":
+            adverbs.append(tok.text)
+        elif tok.pos_ == "INTJ":
+            interjections.append(tok.pos_)
+
+    open_class_num = len(nouns) + len(verbs) + len(adjectives) + len(adverbs)
+    closed_class_num = length - open_class_num - len(interjections)
+
+    # According to frank, no removing only adding
+    if closed_class_num != 0:
+        if open_close > open_class_num / closed_class_num:
+            add = True
+
+    return add
+
 def symbol_check(text):
     """
     Check if the provided text contains symbols.
@@ -97,7 +154,7 @@ def nb_np_vp(sen):
     Count the number of noun and verb phrases in a SpaCy Doc.
 
     Args:
-        doc (spacy.Doc): Input SpaCy document.
+        sen (spacy.Doc): Input SpaCy document.
 
     Returns:
         integer: Number of noun phrases and verb phrases.
@@ -210,8 +267,16 @@ def make_synthetic(example, **fn_kwargs):
     # Initialise an empty string to store the synthetic sentence
     temp_syn_sent = ""
 
+    sen_len = len(example["text"].split())
+    add = count_pos(doc=doc, length=sen_len)
+
+    m0sa_prob = random.uniform(0, 1)  # m:0s:a
+    ms_prob = random.uniform(0, 1)  # m:+s(:a)
+    sgc_prob = random.uniform(0, 1)  # s:r:gc
+    rep_prob = random.uniform(0, 1)  # repetitions
+
     for token in doc:
-        pos = token.pos_
+        #pos = token.pos_
         # Perhaps add the Penn Treebank POS tags
         # Perhaps add the dependencies
 
@@ -221,23 +286,78 @@ def make_synthetic(example, **fn_kwargs):
         # Remove particles as well (perhaps a lower drop percentage), as they are function words
 
         # Apply different probabilities for token removal based on part-of-speech tags
-        if pos in {"DET", "ADP", "PART"}:
-            if random.random() < .70:
-                continue
+
+        if token.pos_ == "NOUN":
+            # m:0s:a and m:+s(:a)
+            if m0sa_prob >= m0sa_lim or ms_prob >= ms_lim:
+                if "Plur" in token.morph.get("Number"):
+                    temp_syn_sent += singularize(token.text) + ' '
+                elif "Sing" in token.morph.get("Number"):
+                    temp_syn_sent += pluralize(token.text) + ' '
             else:
-                temp_syn_sent += " " + token.text
-        elif pos in {"ADJ", "ADV"}:
-            if random.random() > .50:
-                continue
+                temp_syn_sent += token.text + " "
+
+        # Handle pronouns
+        elif token.pos_ == "PRON":
+            # s:r:gc:pro
+            if sgc_prob >= sgc_lim:
+                if token.pos_ == "DET" or "Dem" in token.morph.get('PronType') or "Yes" in token.morph.get('Poss'):
+                    sub = det_sub(token.text)
+                    temp_syn_sent += sub + " "
+                    if rep_prob >= rep_lim:
+                        temp_syn_sent += sub + " "
+                else:
+                    if rep_prob >= rep_lim:
+                        temp_syn_sent += token.text + " "
+                    temp_syn_sent += token.text + " "
             else:
-                temp_syn_sent += " " + token.text
-        elif pos in {"AUX", "VERB"}:
-            if random.random() < .50:
-                continue
-            else:
-                temp_syn_sent += " " + token.lemma_
-        elif pos in {"PUNCT"}:
+                temp_syn_sent += token.text + " "
+                if rep_prob >= rep_lim:
+                    temp_syn_sent += token.text + " "
+        # Discard determiners, particles and prepositions with 60-70%
+        elif token.pos_ in ["DET", "PART"] or token.dep_ in ["prep"]:  # Add "ADP"?
+            y = np.random.uniform(0, 1)
+            prob = np.random.uniform(0.6, 0.7)
+            if y > prob:
+                temp_syn_sent += token.text + " "
+        #elif pos in {"DET", "ADP", "PART"}:
+        #    if random.random() < .70:
+        #        continue
+        #    else:
+        #        temp_syn_sent += " " + token.text
+
+        # Discard adjectives and adverbs with 50%
+        elif token.pos_ in ["ADJ", "ADV"]:
+            Z = np.random.uniform(0, 1)
+            if Z < 0.5:
+                temp_syn_sent += token.text + " "
+        #elif pos in {"ADJ", "ADV"}:
+        #    if random.random() > .50:
+        #        continue
+        #    else:
+        #        temp_syn_sent += " " + token.text
+
+        # Lemmatise verbs with 50%
+        elif token.pos_ in {"AUX", "VERB"}:
+            Z = np.random.uniform(0, 1)
+            if Z < 0.5:
+                temp_syn_sent += token.lemma_ + " "
+        #elif pos in {"AUX", "VERB"}:
+        #    if random.random() < .50:
+        #        continue
+        #    else:
+        #        temp_syn_sent += " " + token.lemma_
+
+        # Repeat interjections if there are more open word classes
+        elif token.pos == "INTJ":
+            # close class from PC analysis 
+            if rep_prob >= rep_lim or add:
+                temp_syn_sent += token.text + " "
+            temp_syn_sent += token.text + " "
+
+        elif token.pos in {"PUNCT"}:
             temp_syn_sent += token.text
+
         else:
             #logger.info(f" Token and POS tag: {token.text, pos}")
             temp_syn_sent += " " + token.text
@@ -247,11 +367,11 @@ def make_synthetic(example, **fn_kwargs):
     #logger.info(f"Original sentence: {example['text']}")
 
     # Store the synthetic sentences in the output dictionary if the length requirement is met
-    syn_len = len(temp_syn_sent[1:].split())
+    syn_len = len(temp_syn_sent.split())
     org_len = len(example["preprocessed_text"].split())
 
     if 1/3 * org_len <= syn_len <= 2/3 * org_len:
-        fn_kwargs["syn_dict"]["synthetic"] = temp_syn_sent[1:]  # Ignore the leading space
+        fn_kwargs["syn_dict"]["synthetic"] = temp_syn_sent  # Ignore the leading space
     else:
         fn_kwargs["syn_dict"]["synthetic"] = ""  # Use empty string as filter token
 
@@ -259,6 +379,7 @@ def make_synthetic(example, **fn_kwargs):
     #fn_kwargs["syn_dict"]["original"] = example["preprocessed_text"]
 
     return fn_kwargs["syn_dict"]
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -297,6 +418,17 @@ if __name__ == "__main__":
 
     # Set seed for replication
     set_seed(args.random_seed)
+
+    # Define global variables
+    dets = {
+        'Art': ['a', 'an', 'the'],
+        'Dem': ['this', 'that', 'these', 'those'],
+        'Poss': ['my', 'your', 'his', 'her', 'its', 'our', 'their']
+    }
+    m0sa_lim = 0.7  # m:0s:a    (30%) done
+    ms_lim = 0.7  # m:+s(:a)    (30%) done
+    sgc_lim = 0.6  # s:r:gc     (40%) done
+    rep_lim = 0.9  # repetition (10%) done
 
     if args.huggingface_dataset:
         logger.info("Loading Hugging Face data set...")
