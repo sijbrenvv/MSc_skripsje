@@ -16,7 +16,9 @@ stanza==1.6.1
 textstat==0.7.3
 contractions==0.1.73
 joblib==1.4.0
-pattern==3.6.0
 matplotlib==3.8.2
 spacy==3.7.4
 scipy==1.13.0
+bitsandbytes==0.43.1
+peft==0.11.1
+pattern==3.6.0
