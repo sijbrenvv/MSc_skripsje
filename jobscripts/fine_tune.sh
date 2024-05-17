@@ -28,13 +28,13 @@ export HF_HOME="/scratch/$USER/.cache/huggingface/hub"
 data_source=$1
 
 # Bleu
-python3 fine_tune_t5.py -tr data/${data_source}/${data_source}_train.json -dev data/${data_source}/${data_source}_dev.json -te data/${data_source}/${data_source}_test.json -out exp/${data_source}/fine-tune_bleu -hf google/flan-t5-large -em bleu
+#python3 fine_tune_t5.py -tr data/${data_source}/${data_source}_train.json -dev data/${data_source}/${data_source}_dev.json -te data/${data_source}/${data_source}_test.json -out exp/${data_source}/fine-tune_bleu -hf google/flan-t5-large -em bleu
 
 # Meteor
 #python3 fine_tune_t5.py -tr data/${data_source}/${data_source}_train.json -dev data/${data_source}/${data_source}_dev.json -te data/${data_source}/${data_source}_test.json -out exp/${data_source}/fine-tune_meteor -hf google/flan-t5-xxl -em meteor
 
 # ChrF
-#python3 fine_tune_t5.py -tr data/${data_source}/${data_source}_train.json -dev data/${data_source}/${data_source}_dev.json -te data/${data_source}/${data_source}_test.json -out exp/${data_source}/fine-tune_chrf -hf google/flan-t5-xl -em chrf
+python3 fine_tune_t5.py -tr data/${data_source}/${data_source}_train.json -dev data/${data_source}/${data_source}_dev.json -te data/${data_source}/${data_source}_test.json -out exp/${data_source}/fine-tune_chrf -hf google/flan-t5-xl -em chrf
 
 # Google Bleu
 #python3 fine_tune_t5.py -tr data/${data_source}/${data_source}_train.json -dev data/${data_source}/${data_source}_dev.json -te data/${data_source}/${data_source}_test.json -out exp/${data_source}/fine-tune_google_bleu -hf google/flan-t5-xl -em google_bleu
