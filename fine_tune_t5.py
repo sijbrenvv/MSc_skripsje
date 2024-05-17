@@ -5,23 +5,20 @@ import evaluate
 import numpy as np
 import pandas as pd
 from datasets import Dataset, load_metric
-from scipy.special import softmax
-from sklearn.model_selection import train_test_split
 from transformers import (
     set_seed,
     AutoTokenizer,
     AutoModelForSeq2SeqLM,
-    pipeline,
     DataCollatorForSeq2Seq,
     Seq2SeqTrainingArguments,
     Seq2SeqTrainer,
 )
 import torch
-import sys
 from sentence_transformers import SentenceTransformer
 #import sister  # Ref: https://github.com/tofunlp/sister
 from sklearn.metrics.pairwise import cosine_similarity
 import warnings
+from peft import LoraConfig, get_peft_model, TaskType, prepare_model_for_kbit_training # prepare_model_for_int8_training
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.simplefilter(action='ignore', category=UserWarning)
@@ -90,9 +87,9 @@ def con_sent_emb(gen_sen: list[str], tar_sen: list[str]) -> tuple:
     senTran = SentenceTransformer("sentence-transformers/sentence-t5-large")  # "sentence-transformers/sentence-t5-base"
     #model = SentenceTransformer("all-MiniLM-L6-v2")  # SentenceBERT
 
-    # Generate the contextualised embeddings for the generated and the target completions
-    gen_emb = senTran.encode(gen_sen)
-    tar_emb = senTran.encode(tar_sen)
+    # Generate the contextual embeddings for the generated and the target completions
+    gen_emb = senTran.encode(gen_sen)  # , convert_to_tensor=True
+    tar_emb = senTran.encode(tar_sen)  # , convert_to_tensor=True
 
     return gen_emb, tar_emb
 
@@ -272,7 +269,7 @@ def fine_tune(train_data: pd.DataFrame, valid_data: pd.DataFrame,  checkpoints_p
     # Get tokeniser and model from huggingface
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     if torch.cuda.is_available():
-        model = AutoModelForSeq2SeqLM.from_pretrained(model_path, torch_dtype=torch.float16)  #   , load_in_8bit=True)
+        model = AutoModelForSeq2SeqLM.from_pretrained(model_path, device_map="auto", load_in_8bit=True)  #   , torch_dtype=torch.float16
         batch_size = 8
     else:
         model = AutoModelForSeq2SeqLM.from_pretrained(model_path)
@@ -281,7 +278,23 @@ def fine_tune(train_data: pd.DataFrame, valid_data: pd.DataFrame,  checkpoints_p
     # Use a GPU if available
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     logger.info(f"Using device: {device}")
-    model.to(device)
+    #model.to(device)
+
+    # Define LoRA Config
+    lora_config = LoraConfig(
+        r=8,
+        lora_alpha=32,
+        lora_dropout=0.05,
+        inference_mode=False,
+        bias="none",
+        task_type=TaskType.SEQ_2_SEQ_LM
+    )
+    # prepare int-8 model for training
+    model = prepare_model_for_kbit_training(model)
+
+    # add LoRA adaptor
+    model = get_peft_model(model, lora_config)
+    #model.print_trainable_parameters()
 
     # the following  hyperparameter is task-specific. Set to max value
     max_length = 512
@@ -371,7 +384,7 @@ def test(test_data: pd.DataFrame, best_model_path: str) -> list[str]:
     # Get tokeniser from saved model and load best model
     tokenizer = AutoTokenizer.from_pretrained(best_model_path)
     if torch.cuda.is_available():
-        model = AutoModelForSeq2SeqLM.from_pretrained(best_model_path)  #, load_in_8bit=True)
+        model = AutoModelForSeq2SeqLM.from_pretrained(best_model_path, device_map="auto", load_in_8bit=True)  # torch_dtype=torch.float16
         batch_size = 16
     else:
         model = AutoModelForSeq2SeqLM.from_pretrained(best_model_path)
@@ -380,7 +393,7 @@ def test(test_data: pd.DataFrame, best_model_path: str) -> list[str]:
     # Use a GPU if available
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     logger.info(f"Using device: {device}")
-    model.to(device)
+    #model.to(device)
 
     # the following  hyperparameter is task-specific. Set to max value
     max_length = 512
@@ -392,7 +405,7 @@ def test(test_data: pd.DataFrame, best_model_path: str) -> list[str]:
     #    fn_kwargs={"tokenizer": tokenizer, "max_length": max_length, "col": 'Source'},
     #)
 
-    tokens = tokenizer(test_dataset['Source'], padding=True, return_tensors="pt")
+    tokens = tokenizer(test_dataset['Source'], padding=True, return_tensors="pt")  #.to(device)
     output = model.generate(**tokens, max_new_tokens=50)
 
     # Return the generated completions
