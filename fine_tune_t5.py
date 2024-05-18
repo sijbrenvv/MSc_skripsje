@@ -26,6 +26,8 @@ warnings.simplefilter(action='ignore', category=UserWarning)
 # Use Python logging for logging messages
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+# Set the logging level for the sentence_transformers library to WARNING
+logging.getLogger("sentence_transformers").setLevel(logging.WARNING)
 
 
 def tokenize_function(examples, **fn_kwargs: dict[str:any]):
