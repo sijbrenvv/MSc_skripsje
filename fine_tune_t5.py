@@ -29,6 +29,10 @@ logger = logging.getLogger(__name__)
 # Set the logging level for the sentence_transformers library to WARNING
 logging.getLogger("sentence_transformers").setLevel(logging.WARNING)
 
+# Set PYTORCH_CUDA_ALLOC_CONF environment variable
+#os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "caching_allocator"
+# os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments"
+
 
 def tokenize_function(examples, **fn_kwargs: dict[str:any]):
     """
@@ -385,7 +389,7 @@ def fine_tune(train_data: pd.DataFrame, valid_data: pd.DataFrame,  checkpoints_p
 
     # Delete henceforth unused variables to save memory
     del tokenized_train_dataset, tokenized_valid_dataset
-    del trainer, data_collator
+    del trainer, data_collator, model, tokenizer
 
 
 def test(test_data: pd.DataFrame, best_model_path: str) -> list[str]:
