@@ -67,9 +67,9 @@ def get_data(train_path: str, dev_path: str, test_path: str, random_seed: int) -
     val_df.rename(columns={"synthetic": "Source", "preprocessed_text": "Target"}, inplace=True)
 
     # We only need the 'Source' and 'Target' columns
-    #train_df = train_df[["Source", "Target"]]
-    #val_df = val_df[["Source", "Target"]]
-    #test_df = test_df[["Source", "Target"]]
+    train_df = train_df[["Source", "Target"]]
+    val_df = val_df[["Source", "Target"]]
+    test_df = test_df[["Source", "Target"]]
 
     return train_df, val_df, test_df
 
@@ -385,7 +385,7 @@ def fine_tune(train_data: pd.DataFrame, valid_data: pd.DataFrame,  checkpoints_p
 
     # Delete henceforth unused variables to save memory
     del tokenized_train_dataset, tokenized_valid_dataset
-    del trainer, data_collator, model
+    del trainer, data_collator
 
 
 def test(test_data: pd.DataFrame, best_model_path: str) -> list[str]:
@@ -552,7 +552,8 @@ if __name__ == "__main__":
     })
 
     # Export dataframe
-    os.makedirs(args.output_file_path, exist_ok=True)
-    logger.info(f"Exporting dataframe to '{args.output_file_path}.[json|csv]'...")
-    output_df.to_csv(args.output_file_path + ".csv", index=False, sep=',')
-    output_df.to_json(args.output_file_path + ".json", orient="records", lines=True)
+    output_dir = args.output_file_path.split("_")[0]
+    os.makedirs(output_dir, exist_ok=True)
+    logger.info(f"Exporting dataframe to '{output_dir + '/' + args.output_file_path.split('/')[-1]}.[json|csv]'...")
+    output_df.to_csv(output_dir + "/" + args.output_file_path.split("/")[-1] + ".csv", index=False, sep=',')
+    output_df.to_json(output_dir + "/" + args.output_file_path.split("/")[-1] + ".json", orient="records", lines=True)
