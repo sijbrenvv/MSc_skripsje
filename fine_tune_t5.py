@@ -321,6 +321,9 @@ def fine_tune(train_data: pd.DataFrame, valid_data: pd.DataFrame,  checkpoints_p
     tokenized_train_dataset["labels"] = train_labels
     tokenized_train_dataset = Dataset.from_dict(tokenized_train_dataset)
 
+    # Delete henceforth unused variables to save memory
+    del train_dataset, train_labels
+
     # Encode valid data set
     tokenized_valid_dataset = valid_dataset.map(
         tokenize_function,
@@ -337,6 +340,9 @@ def fine_tune(train_data: pd.DataFrame, valid_data: pd.DataFrame,  checkpoints_p
     tokenized_valid_dataset = tokenized_valid_dataset.to_dict()
     tokenized_valid_dataset["labels"] = valid_labels
     tokenized_valid_dataset = Dataset.from_dict(tokenized_valid_dataset)
+
+    # Delete henceforth unused variables to save memory
+    del valid_dataset, valid_labels
 
     # Create DataCollator object (creates train batches --> speeds up the training process)
     data_collator = DataCollatorForSeq2Seq(tokenizer=tokenizer)
@@ -377,6 +383,10 @@ def fine_tune(train_data: pd.DataFrame, valid_data: pd.DataFrame,  checkpoints_p
 
     trainer.save_model(best_model_path)
 
+    # Delete henceforth unused variables to save memory
+    del tokenized_train_dataset, tokenized_valid_dataset
+    del trainer, data_collator, model
+
 
 def test(test_data: pd.DataFrame, best_model_path: str) -> list[str]:
     """ """
@@ -387,47 +397,22 @@ def test(test_data: pd.DataFrame, best_model_path: str) -> list[str]:
     tokenizer = AutoTokenizer.from_pretrained(best_model_path)
     if torch.cuda.is_available():
         model = AutoModelForSeq2SeqLM.from_pretrained(best_model_path, device_map="auto", load_in_8bit=True)  # torch_dtype=torch.float16
-        batch_size = 16
     else:
         model = AutoModelForSeq2SeqLM.from_pretrained(best_model_path)
-        batch_size = 8
 
     # Use a GPU if available
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     logger.info(f"Using device: {device}")
     #model.to(device)
 
-    # the following  hyperparameter is task-specific. Set to max value
-    max_length = 512
-
-    # Encode test data set
-    #tokenized_test_dataset = test_dataset.map(
-    #    tokenize_function,
-    #    batched=True,
-    #    fn_kwargs={"tokenizer": tokenizer, "max_length": max_length, "col": 'Source'},
-    #)
-
     tokens = tokenizer(test_dataset['Source'], padding=True, return_tensors="pt")  #.to(device)
     output = model.generate(**tokens, max_new_tokens=50)
 
+    # Delete henceforth unused variables to save memory
+    del test_dataset, tokens
+
     # Return the generated completions
     return tokenizer.batch_decode(output, skip_special_tokens=True)
-
-    """
-    # Create DataCollator object (creates test batches --> speeds up the testing process)
-    data_collator = DataCollatorForSeq2Seq(tokenizer=tokenizer)
-
-    # Create Trainer object
-    trainer = Seq2SeqTrainer(
-        model=model,
-        tokenizer=tokenizer,
-        data_collator=data_collator,
-        compute_metrics=compute_metrics,
-    )
-
-    # Get the generated completions (predictions) and evaluate
-    predictions = trainer.predict(tokenized_test_dataset)
-"""
 
 
 def evaluate_comp(gen_comp: list, tar_comp: list) -> dict[str:list]:
@@ -454,14 +439,6 @@ def evaluate_comp(gen_comp: list, tar_comp: list) -> dict[str:list]:
         #meteor_scores.append(meteor.compute(predictions=[v], references=[tar_comp[c]])['meteor'])
         chrf_scores.append(chrf.compute(predictions=[v], references=[tar_comp[c]])['score'])
         con_sent_emb_cs.append(cosine_similarity(con_sent_emb(v,tar_comp[c]))[0][1])
-
-    # Loop over the generated completions and compute the BLEU score against the according reference
-    #bleu_scores = [bleu.compute(predictions=[v], references=[tar_comp[c]]) for c,v in enumerate(gen_comp)]
-    #print(f"Average BLEU score = {np.average([result['bleu'] for result in bleu_scores])}")
-
-    # Mean scores
-    #print(f"Average BLEU score = {np.average(bleu_scores)}")
-    #print(f"Average cosine similarity (sT5) = {np.average(con_sent_emb_cs)}")
 
     return {
         "bleu_sc": bleu_scores,
@@ -557,6 +534,7 @@ if __name__ == "__main__":
         eval_metric=eval_metric,
         random_seed=args.random_seed
     )
+    del train_df, val_df
 
     # Test completion model
     logger.info(f"Testing completion model...")
