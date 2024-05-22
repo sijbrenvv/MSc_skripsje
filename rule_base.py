@@ -282,73 +282,74 @@ def make_synthetic(example, **fn_kwargs):
 
         # Apply different probabilities for token removal based on part-of-speech tags
 
-        if pos == "NOUN":
-            # A plural noun for singular in 30% of the times, vice versa.
-            if random.random() >= .70 or random.random() >= .70:
-                if "Plur" in token.morph.get("Number"):
-                    temp_syn_sent += singularize(token.text) + ' '
-                elif "Sing" in token.morph.get("Number"):
-                    temp_syn_sent += pluralize(token.text) + ' '
-            else:
-                temp_syn_sent += token.text + " "
+        # Discard determiners, particles and prepositions with 70%
+        if pos in {"DET", "ADP", "PART"} or token.dep_ in {"prep"}:
+            if random.random() > .70:
+                temp_syn_sent += " " + token.text
 
-        # Handle pronouns
-        elif pos == "PRON":
+        # Discard adjectives and adverbs with 50%
+        elif pos in {"ADJ", "ADV"}:
+            if random.random() < 0.5:
+                temp_syn_sent += " " + token.text
+
+        # Lemmatise verbs with 50%
+        elif pos in {"AUX", "VERB"}:
+            if random.random() > 0.5:
+                temp_syn_sent += " " + token.text
+
+        # Change noun to plural or singular with 30%
+        elif pos in {"NOUN"}:
+            # A plural noun for singular in 30% of the times, vice versa.
+            if random.random() >= .70:
+                if "Plur" in token.morph.get("Number"):
+                    temp_syn_sent += " " + singularize(token.text)
+                elif "Sing" in token.morph.get("Number"):
+                    temp_syn_sent += " " + pluralize(token.text)
+            else:
+                temp_syn_sent += " " + token.text
+
+        # Handle pronouns: modify possessive and demonstrative pronoun with 40%
+        elif pos in {"PRON"}:
             # Wrong possessive and demonstrative pronoun in 40% of the times
             # Repeat pronouns in 10% of the times
             if random.random() >= .60:
                 if pos == "DET" or "Dem" in token.morph.get('PronType') or "Yes" in token.morph.get('Poss'):
                     sub = det_sub(token.text)
-                    temp_syn_sent += sub + " "
-                    if random.random() >= .90:
-                        temp_syn_sent += sub + " "
+                    temp_syn_sent += " " + sub
+                    #if random.random() >= .90:
+                    #    temp_syn_sent += " " + sub
                 else:
-                    if random.random() >= .90:
-                        temp_syn_sent += token.text + " "
-                    temp_syn_sent += token.text + " "
+                    #if random.random() >= .90:
+                    #    temp_syn_sent += " " + token.text
+                    temp_syn_sent += " " + token.text
             else:
-                temp_syn_sent += token.text + " "
-                if random.random() >= .90:
-                    temp_syn_sent += token.text + " "
-
-        # Discard determiners, particles and prepositions with 70%
-        elif pos in ["DET", "ADP", "PART"] or token.dep_ in ["prep"]:
-            if random.random() > .70:
-                temp_syn_sent += token.text + " "
-
-        # Discard adjectives and adverbs with 50%
-        elif pos in ["ADJ", "ADV"]:
-            if random.random() < 0.5:
-                temp_syn_sent += token.text + " "
-
-        # Lemmatise verbs with 50%
-        elif pos in {"AUX", "VERB"}:
-            if random.random() < 0.5:
-                temp_syn_sent += token.lemma_ + " "
+                temp_syn_sent += " " + token.text
+                #if random.random() >= .90:
+                #    temp_syn_sent += " " + token.text
 
         # Repeat interjections if there are more open word classes
-        elif pos == "INTJ":
-            if random.random() >= .90 or add:
-                temp_syn_sent += token.text + " "
-            temp_syn_sent += token.text + " "
+        #elif pos == "INTJ":
+        #    if random.random() >= .90 or add:
+        #        temp_syn_sent += " " + token.text
+        #    temp_syn_sent += " " + token.text
 
         elif pos in {"PUNCT"}:
             temp_syn_sent += token.text
 
         else:
             #logger.info(f" Token and POS tag: {token.text, pos}")
-            temp_syn_sent += token.text + " "
+            temp_syn_sent += " " + token.text
 
     #logger.info(f"{temp_syn_sent = }")
     #logger.info(f"{temp_syn_sent[1:]}")
     #logger.info(f"Original sentence: {example['text']}")
 
     # Store the synthetic sentences in the output dictionary if the length requirement is met
-    syn_len = len(temp_syn_sent.split())
+    syn_len = len(temp_syn_sent[1:].split())
     org_len = len(example["preprocessed_text"].split())
 
     if 1/3 * org_len <= syn_len <= 2/3 * org_len:
-        fn_kwargs["syn_dict"]["synthetic"] = temp_syn_sent  # Ignore the leading space
+        fn_kwargs["syn_dict"]["synthetic"] = temp_syn_sent[1:]  # Ignore the leading space
     else:
         fn_kwargs["syn_dict"]["synthetic"] = ""  # Use empty string as filter token
 
@@ -462,8 +463,9 @@ if __name__ == "__main__":
         remove_columns=["text", "__index_level_0__"],
     )
 
+    logger.info("Post-processing...")
     # Filter synthetic dataset: remove empty strings (sents which do not meet length requirement) \
-    # and remove two word utterances or less.
+    # and remove two-word utterances or less.
     syn_dataset = syn_dataset.filter(lambda example: example["synthetic"] != "")#, input_columns=["synthetic"])
     syn_dataset = syn_dataset.filter(lambda example: len(example["synthetic"].split()) >= 3)
 
