@@ -31,7 +31,7 @@ logging.getLogger("sentence_transformers").setLevel(logging.WARNING)
 
 # Set PYTORCH_CUDA_ALLOC_CONF environment variable
 #os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "caching_allocator"
-# os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 
 
 def tokenize_function(examples, **fn_kwargs: dict[str:any]):
