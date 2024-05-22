@@ -16,7 +16,7 @@ pip install --upgrade pip wheel setuptools
 pip install -r requirements.txt
 
 # Move cached datasets to the /scratch directory
-export HF_DATASETS_CACHE="/scratch/$USER/.cache/huggingface/datasets"
+#export HF_DATASETS_CACHE="/scratch/$USER/.cache/huggingface/datasets"
 
 # Move downloaded models and tokenizers to the /scratch directory
 export HF_HOME="/scratch/$USER/.cache/huggingface/hub"
@@ -31,7 +31,7 @@ export 'PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True'
 data_source=$1
 
 # Bleu
-#python3 fine_tune_t5.py -tr data/${data_source}/${data_source}_train.json -dev data/${data_source}/${data_source}_dev.json -te data/${data_source}/${data_source}_test.json -out exp/${data_source}/flan-t5-xl_fine-tune_bleu -hf google/flan-t5-xl -em bleu
+python3 fine_tune_t5.py -tr data/${data_source}/${data_source}_train.json -dev data/${data_source}/${data_source}_dev.json -te data/${data_source}/${data_source}_test.json -out exp/${data_source}/flan-t5-xl_fine-tune_bleu -hf google/flan-t5-xl -em bleu
 
 # Meteor
 #python3 fine_tune_t5.py -tr data/${data_source}/${data_source}_train.json -dev data/${data_source}/${data_source}_dev.json -te data/${data_source}/${data_source}_test.json -out exp/${data_source}/flan-t5-xl_fine-tune_meteor -hf google/flan-t5-xl -em meteor
@@ -40,7 +40,7 @@ data_source=$1
 python3 fine_tune_t5.py -tr data/${data_source}/${data_source}_train.json -dev data/${data_source}/${data_source}_dev.json -te data/${data_source}/${data_source}_test.json -out exp/${data_source}/flan-t5-xl_fine-tune_chrf -hf google/flan-t5-xl -em chrf
 
 # Google Bleu
-#python3 fine_tune_t5.py -tr data/${data_source}/${data_source}_train.json -dev data/${data_source}/${data_source}_dev.json -te data/${data_source}/${data_source}_test.json -out exp/${data_source}/flan-t5-xl_fine-tune_google_bleu -hf google/flan-t5-xl -em google_bleu
+python3 fine_tune_t5.py -tr data/${data_source}/${data_source}_train.json -dev data/${data_source}/${data_source}_dev.json -te data/${data_source}/${data_source}_test.json -out exp/${data_source}/flan-t5-xl_fine-tune_google_bleu -hf google/flan-t5-xl -em google_bleu
 
 # Backup scripts
 cp fine_tune_t5.py exp/${data_source}/
