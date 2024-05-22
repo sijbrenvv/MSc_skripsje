@@ -204,16 +204,12 @@ def keep_sentences(example, **fn_kwargs):
 
     for sen in doc.sents:
         sen_text = sen.text
-        #logger.info(f"{sen_text = }")
         symbol = symbol_check(sen_text)
-        #logger.info(f"{symbol = }")
         sen_len = len(sen_text.split())
         # Continue when the sentence is shorter than or equal to 15 words and does not contain symbols
         if sen_len <= 15 and symbol is False:
             # Extract the number of noun and verb phrases
             nb_np, nb_vp = nb_np_vp(sen)
-            #logger.info(f"{nb_np = }")
-            #logger.info(f"{nb_vp = }")
             if nb_vp == 0:
                 continue
             elif nb_np / nb_vp > 2:
@@ -225,14 +221,6 @@ def keep_sentences(example, **fn_kwargs):
                 fn_kwargs["ks_dict"]["text"] = sen_text
                 # To make sure all sentences are stored together in a list for each example
                 # use: fn_kwargs["ks_dict"]["text"].append(sen_text)
-
-                #fn_kwargs["ks_dict"].get("text", []).append(sen_text)
-                # Dataset object cannot handle Span object
-                #fn_kwargs["ks_dict"["text_doc"] = sen
-
-    #logger.info(f"{len(ks_dict)}")
-    #logger.info(f'Kept sentences dataset: {list(fn_kwargs["ks_dict"].values())}')
-    #logger.info(f'{fn_kwargs["ks_dict"] = }')
 
     return fn_kwargs["ks_dict"]
 
@@ -264,6 +252,7 @@ def make_synthetic(example, **fn_kwargs):
 
     # Parse the text
     doc = fn_kwargs["udpipe"](example["text"]) # If this line crashes, modify docstring (fn_kwargs arg)
+
     # Initialise an empty string to store the synthetic sentence
     temp_syn_sent = ""
 
@@ -272,16 +261,8 @@ def make_synthetic(example, **fn_kwargs):
 
     for token in doc:
         pos = token.pos_
-        # Perhaps add the Penn Treebank POS tags
-        # Perhaps add the dependencies
 
-        # Removal of subject (noun)? if token.dep_ in {"nsubj"}:
-        # How to target copulas? Copulas are often parsed as the root
-        ## Look for children in the tree: see if it contains two outgoing links, a subject and an object?
-        # Remove particles as well (perhaps a lower drop percentage), as they are function words
-
-        # Apply different probabilities for token removal based on part-of-speech tags
-
+        # Apply different probabilities for token removal based on part-of-speech tags:
         # Discard determiners, particles and prepositions with 70%
         if pos in {"DET", "ADP", "PART"} or token.dep_ in {"prep"}:
             if random.random() > .70:
@@ -337,12 +318,7 @@ def make_synthetic(example, **fn_kwargs):
             temp_syn_sent += token.text
 
         else:
-            #logger.info(f" Token and POS tag: {token.text, pos}")
             temp_syn_sent += " " + token.text
-
-    #logger.info(f"{temp_syn_sent = }")
-    #logger.info(f"{temp_syn_sent[1:]}")
-    #logger.info(f"Original sentence: {example['text']}")
 
     # Store the synthetic sentences in the output dictionary if the length requirement is met
     syn_len = len(temp_syn_sent[1:].split())
@@ -352,9 +328,6 @@ def make_synthetic(example, **fn_kwargs):
         fn_kwargs["syn_dict"]["synthetic"] = temp_syn_sent[1:]  # Ignore the leading space
     else:
         fn_kwargs["syn_dict"]["synthetic"] = ""  # Use empty string as filter token
-
-    #fn_kwargs["syn_dict"]["synthetic"] = temp_syn_sent[1:]  # Ignore the leading space
-    #fn_kwargs["syn_dict"]["original"] = example["preprocessed_text"]
 
     return fn_kwargs["syn_dict"]
 
@@ -407,16 +380,13 @@ if __name__ == "__main__":
     if args.huggingface_dataset:
         logger.info("Loading Hugging Face data set...")
         identifier = args.input_file_path  # For example, 'allenai/c4'
-        #dataset = load_dataset(identifier, "en", streaming=True)
         dataset = load_dataset(identifier)
-        #logger.info(dataset, file=sys.stderr)
 
         # We are only interested in the text column
         column_names = dataset["train"].column_names
 
         # Remove all columns except the first one: the 'text' column
         dataset = dataset["train"].remove_columns(column_names[1:])
-        #logger.info(dataset, file=sys.stderr)
 
     if not os.path.exists(args.input_file_path):
         raise FileNotFoundError(f"CSV or JSON input file '{args.input_file_path}' not found.\n Did you forget to set -hd to True when using a HF data set?")
@@ -429,7 +399,6 @@ if __name__ == "__main__":
         dataset = Dataset.from_csv(args.input_file_path)
     elif args.input_file_path.endswith(".json"):
         dataset = Dataset.from_json(args.input_file_path)
-        #?dataset = load_dataset('json', data_files=args.input_file_path)
 
     # Create dictionary for the sentences to keep
     ks_dict = {"text": ""}
@@ -439,7 +408,6 @@ if __name__ == "__main__":
 
     # Get all the sentences we want to keep and process further
     logger.info("Retrieving the sentences we want to keep and process further...")
-    # keep_dataset = dataset.select(range(1000)).map(
     keep_dataset = dataset.map(
         keep_sentences,
         #batched=True,
@@ -466,7 +434,7 @@ if __name__ == "__main__":
     logger.info("Post-processing...")
     # Filter synthetic dataset: remove empty strings (sents which do not meet length requirement) \
     # and remove two-word utterances or less.
-    syn_dataset = syn_dataset.filter(lambda example: example["synthetic"] != "")#, input_columns=["synthetic"])
+    syn_dataset = syn_dataset.filter(lambda example: example["synthetic"] != "")
     syn_dataset = syn_dataset.filter(lambda example: len(example["synthetic"].split()) >= 3)
 
     # Export dataset
