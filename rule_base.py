@@ -217,9 +217,9 @@ def keep_sentences(example, **fn_kwargs):
             if nb_vp == 0:
                 continue
             elif nb_np / nb_vp > 2:
-                if random.random() < .80:
-                    # Go to the next iteration, in other words, discard sentence
-                    continue
+                if random.random() > .80:
+                    # Add sentence
+                    fn_kwargs["ks_dict"]["text"] = sen_text
             else:
                 # Add sentence
                 fn_kwargs["ks_dict"]["text"] = sen_text
@@ -270,13 +270,8 @@ def make_synthetic(example, **fn_kwargs):
     sen_len = len(example["text"].split())
     add = count_pos(doc=doc, length=sen_len)
 
-    m0sa_prob = random.uniform(0, 1)  # m:0s:a
-    ms_prob = random.uniform(0, 1)  # m:+s(:a)
-    sgc_prob = random.uniform(0, 1)  # s:r:gc
-    rep_prob = random.uniform(0, 1)  # repetitions
-
     for token in doc:
-        #pos = token.pos_
+        pos = token.pos_
         # Perhaps add the Penn Treebank POS tags
         # Perhaps add the dependencies
 
@@ -287,9 +282,9 @@ def make_synthetic(example, **fn_kwargs):
 
         # Apply different probabilities for token removal based on part-of-speech tags
 
-        if token.pos_ == "NOUN":
-            # m:0s:a and m:+s(:a)
-            if m0sa_prob >= m0sa_lim or ms_prob >= ms_lim:
+        if pos == "NOUN":
+            # A plural noun for singular in 30% of the times, vice versa.
+            if random.random() >= .70 or random.random() >= .70:
                 if "Plur" in token.morph.get("Number"):
                     temp_syn_sent += singularize(token.text) + ' '
                 elif "Sing" in token.morph.get("Number"):
@@ -298,69 +293,51 @@ def make_synthetic(example, **fn_kwargs):
                 temp_syn_sent += token.text + " "
 
         # Handle pronouns
-        elif token.pos_ == "PRON":
-            # s:r:gc:pro
-            if sgc_prob >= sgc_lim:
-                if token.pos_ == "DET" or "Dem" in token.morph.get('PronType') or "Yes" in token.morph.get('Poss'):
+        elif pos == "PRON":
+            # Wrong possessive and demonstrative pronoun in 40% of the times
+            # Repeat pronouns in 10% of the times
+            if random.random() >= .60:
+                if pos == "DET" or "Dem" in token.morph.get('PronType') or "Yes" in token.morph.get('Poss'):
                     sub = det_sub(token.text)
                     temp_syn_sent += sub + " "
-                    if rep_prob >= rep_lim:
+                    if random.random() >= .90:
                         temp_syn_sent += sub + " "
                 else:
-                    if rep_prob >= rep_lim:
+                    if random.random() >= .90:
                         temp_syn_sent += token.text + " "
                     temp_syn_sent += token.text + " "
             else:
                 temp_syn_sent += token.text + " "
-                if rep_prob >= rep_lim:
+                if random.random() >= .90:
                     temp_syn_sent += token.text + " "
-        # Discard determiners, particles and prepositions with 60-70%
-        elif token.pos_ in ["DET", "PART"] or token.dep_ in ["prep"]:  # Add "ADP"?
-            y = np.random.uniform(0, 1)
-            prob = np.random.uniform(0.6, 0.7)
-            if y > prob:
+
+        # Discard determiners, particles and prepositions with 70%
+        elif pos in ["DET", "ADP", "PART"] or token.dep_ in ["prep"]:
+            if random.random() > .70:
                 temp_syn_sent += token.text + " "
-        #elif pos in {"DET", "ADP", "PART"}:
-        #    if random.random() < .70:
-        #        continue
-        #    else:
-        #        temp_syn_sent += " " + token.text
 
         # Discard adjectives and adverbs with 50%
-        elif token.pos_ in ["ADJ", "ADV"]:
-            Z = np.random.uniform(0, 1)
-            if Z < 0.5:
+        elif pos in ["ADJ", "ADV"]:
+            if random.random() < 0.5:
                 temp_syn_sent += token.text + " "
-        #elif pos in {"ADJ", "ADV"}:
-        #    if random.random() > .50:
-        #        continue
-        #    else:
-        #        temp_syn_sent += " " + token.text
 
         # Lemmatise verbs with 50%
-        elif token.pos_ in {"AUX", "VERB"}:
-            Z = np.random.uniform(0, 1)
-            if Z < 0.5:
+        elif pos in {"AUX", "VERB"}:
+            if random.random() < 0.5:
                 temp_syn_sent += token.lemma_ + " "
-        #elif pos in {"AUX", "VERB"}:
-        #    if random.random() < .50:
-        #        continue
-        #    else:
-        #        temp_syn_sent += " " + token.lemma_
 
         # Repeat interjections if there are more open word classes
-        elif token.pos == "INTJ":
-            # close class from PC analysis 
-            if rep_prob >= rep_lim or add:
+        elif pos == "INTJ":
+            if random.random() >= .90 or add:
                 temp_syn_sent += token.text + " "
             temp_syn_sent += token.text + " "
 
-        elif token.pos in {"PUNCT"}:
+        elif pos in {"PUNCT"}:
             temp_syn_sent += token.text
 
         else:
             #logger.info(f" Token and POS tag: {token.text, pos}")
-            temp_syn_sent += " " + token.text
+            temp_syn_sent += token.text + " "
 
     #logger.info(f"{temp_syn_sent = }")
     #logger.info(f"{temp_syn_sent[1:]}")
@@ -425,10 +402,6 @@ if __name__ == "__main__":
         'Dem': ['this', 'that', 'these', 'those'],
         'Poss': ['my', 'your', 'his', 'her', 'its', 'our', 'their']
     }
-    m0sa_lim = 0.7  # m:0s:a    (30%) done
-    ms_lim = 0.7  # m:+s(:a)    (30%) done
-    sgc_lim = 0.6  # s:r:gc     (40%) done
-    rep_lim = 0.9  # repetition (10%) done
 
     if args.huggingface_dataset:
         logger.info("Loading Hugging Face data set...")
