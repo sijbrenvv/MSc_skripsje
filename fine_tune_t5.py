@@ -12,6 +12,7 @@ from transformers import (
     DataCollatorForSeq2Seq,
     Seq2SeqTrainingArguments,
     Seq2SeqTrainer,
+    BitsAndBytesConfig,
 )
 import torch
 from sentence_transformers import SentenceTransformer
@@ -175,12 +176,19 @@ def fine_tune(train_data: pd.DataFrame, valid_data: pd.DataFrame,  checkpoints_p
 
     # Get tokeniser and model from huggingface
     tokenizer = AutoTokenizer.from_pretrained(model_path)
+
+    # Define BitsandBytesConfig
+    quantization_config = BitsAndBytesConfig(
+        load_in_8bit=True,
+        quantization_dtype=torch.float16,
+    )
+
     if torch.cuda.is_available():
-        model = AutoModelForSeq2SeqLM.from_pretrained(model_path, device_map="auto", load_in_8bit=True)  #   , torch_dtype=torch.float16
-        batch_size = 4
+        model = AutoModelForSeq2SeqLM.from_pretrained(model_path, device_map="auto", quantization_config=quantization_config)  #   , torch_dtype=torch.float16
+        batch_size = 8
     else:
         model = AutoModelForSeq2SeqLM.from_pretrained(model_path)
-        batch_size = 4
+        batch_size = 8
 
     # Use a GPU if available
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -290,6 +298,9 @@ def fine_tune(train_data: pd.DataFrame, valid_data: pd.DataFrame,  checkpoints_p
 
     trainer.save_model(best_model_path)
 
+    # Clear CUDA cache
+    torch.cuda.empty_cache()
+
     # Delete henceforth unused variables to save memory
     del tokenized_train_dataset, tokenized_valid_dataset
     del trainer, data_collator, model, tokenizer
@@ -297,13 +308,23 @@ def fine_tune(train_data: pd.DataFrame, valid_data: pd.DataFrame,  checkpoints_p
 
 def test(test_data: pd.DataFrame, best_model_path: str) -> list[str]:
     """ """
+    # Clear CUDA cache
+    torch.cuda.empty_cache()
+
     # Pandas dataframe to huggingface Dataset
     test_dataset = Dataset.from_pandas(test_data)
 
     # Get tokeniser from saved model and load best model
     tokenizer = AutoTokenizer.from_pretrained(best_model_path)
+
+    # Define BitsandBytesConfig
+    quantization_config = BitsAndBytesConfig(
+        load_in_8bit=True,
+        quantization_dtype=torch.float16,
+    )
+
     if torch.cuda.is_available():
-        model = AutoModelForSeq2SeqLM.from_pretrained(best_model_path, device_map="auto", load_in_8bit=True)  # torch_dtype=torch.float16
+        model = AutoModelForSeq2SeqLM.from_pretrained(best_model_path, device_map="auto", quantization_config=quantization_config)  # torch_dtype=torch.float16
     else:
         model = AutoModelForSeq2SeqLM.from_pretrained(best_model_path)
 
@@ -312,16 +333,49 @@ def test(test_data: pd.DataFrame, best_model_path: str) -> list[str]:
     logger.info(f"Using device: {device}")
     #model.to(device)
 
-    tokens = tokenizer(test_dataset['Source'], padding=True, return_tensors="pt")  #.to(device)
+    # Use gradient checkpointing during inference
+    model.gradient_checkpointing_enable()
+
+    # Function to generate predictions for a batch
+    def generate_batch(inputs):
+        tokens = tokenizer(inputs, return_tensors="pt", padding=True, truncation=True, max_length=512)#.to(device)
+        with torch.no_grad():
+            outputs = model.generate(**tokens, max_new_tokens=50)
+        return tokenizer.batch_decode(outputs, skip_special_tokens=True)
+
+    # Split test data into batches
+    batch_size = 8
+    test_inputs = test_dataset['Source']
+    batches = [test_inputs[i:i + batch_size] for i in range(0, len(test_inputs), batch_size)]
+
     del test_dataset, test_data
-    with torch.no_grad():  # Disable gradient calculation
-        output = model.generate(**tokens, max_new_tokens=50)
+
+    # Generate predictions for each batch
+    all_completions = []
+    for batch in batches:
+        predictions = generate_batch(batch)
+        for pred in predictions:
+            all_completions.append(pred)
+
+    #tokens = tokenizer(test_dataset['Source'], padding=True, truncation=True, max_length=512, return_tensors="pt")  #.to(device)
+
+    # Disable gradient calculation
+    #with torch.no_grad():
+    #    output = model.generate(**tokens, max_new_tokens=50)
+
+    # Clear CUDA cache
+    #torch.cuda.empty_cache()
+
+    # Print memory summary
+    logger.info(torch.cuda.memory_summary(device=None, abbreviated=False))
+
+    return all_completions
 
     # Delete henceforth unused variables to save memory
-    del tokens
+    #del tokens
 
     # Return the generated completions
-    return tokenizer.batch_decode(output, skip_special_tokens=True)
+    #return tokenizer.batch_decode(output, skip_special_tokens=True)
 
 
 def evaluate_comp(gen_comp: list, tar_comp: list) -> dict[str:list]:
