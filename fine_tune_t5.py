@@ -164,105 +164,6 @@ def compute_metrics(eval_pred, tokenizer, eval_metric: str) -> dict[str:float]:
     return results
 
 
-def zero_shot(val_df, model_path, random_seed):
-    """ Simple test function to experiment with HF models in a zero shot setting"""
-
-    # Pandas dataframe to huggingface Dataset
-    test_dataset = Dataset.from_pandas(val_df)
-
-    # Get tokeniser and model from huggingface
-    tokenizer = AutoTokenizer.from_pretrained(model_path)
-    if torch.cuda.is_available():
-        model = AutoModelForSeq2SeqLM.from_pretrained(model_path)  #, load_in_8bit=True)
-    else:
-        model = AutoModelForSeq2SeqLM.from_pretrained(model_path)
-
-
-    # Use a GPU if available
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    logger.info(f"Using device: {device}")
-    model.to(device)
-
-    # Tokenise using an extensive prefix
-    #tokens = tokenizer(['Complete this utterance into a grammatical sentence. Remove stop words and filler words, change verb and noun inflections and the sentence structure appropriately. Add the subject or verbs if necessary: ' + s for s in test_dataset['Source']], padding=True, return_tensors="pt")
-
-    # Tokenise using a simple prefix (the same as Misra and colleagues)
-    # tokens = tokenizer(['Complete this sentence: ' + s for s in test_dataset['Source']], padding=True, return_tensors="pt")
-
-    # Tokenise without prefix c.q. any instructions and generate completions
-    tokens = tokenizer(test_dataset['Source'], padding=True, return_tensors="pt")
-    output = model.generate(**tokens, max_new_tokens=50)
-
-    #print(f"Completed sentences: {tokenizer.batch_decode(output, skip_special_tokens=True)}")
-    # Return the generated completions
-    return tokenizer.batch_decode(output, skip_special_tokens=True)
-
-
-def k_shot(train_df, val_df, model_path, random_seed, k):
-    """ Test function to experiment with HF models in a zero shot setting"""
-    # ref: https://huggingface.co/docs/transformers/model_doc/t5
-
-    # Pandas dataframe to huggingface Dataset
-    train_dataset = Dataset.from_pandas(train_df)
-    test_dataset = Dataset.from_pandas(val_df)
-
-    # Get tokeniser and model from huggingface
-    tokenizer = AutoTokenizer.from_pretrained(model_path)
-    if torch.cuda.is_available():
-        model = AutoModelForSeq2SeqLM.from_pretrained(model_path)  #, load_in_8bit=True)
-    else:
-        model = AutoModelForSeq2SeqLM.from_pretrained(model_path)
-
-    # Use a GPU if available
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    logger.info(f"Using device: {device}")
-    model.to(device)
-
-    # the following 2 hyperparameters are task-specific. Set to max values
-    max_source_length = 512
-    max_target_length = 512
-
-    train_examples = train_dataset.shuffle(seed=random_seed).select(range(k))
-
-    # Encode train inputs
-    input_seq = train_examples['Source']
-    encoding = tokenizer(
-        input_seq,
-        padding='longest',
-        max_length=max_source_length,
-        truncation=True,
-        return_tensors='pt'
-    )
-    # We also pass attention_mask to make sure that padding tokens of the inputs are ignored
-    input_ids, attention_mask = encoding.input_ids, encoding.attention_mask
-
-    # Encode train outputs
-    output_seq = train_examples['Target']
-    tar_encoding = tokenizer(
-        output_seq,
-        padding='longest',
-        max_length=max_target_length,
-        truncation=True,
-        return_tensors='pt'
-    )
-
-    labels = tar_encoding.input_ids
-
-    # Replace padding token id's of the labels by -100 so it is ignored by the loss
-    labels[labels == tokenizer.pad_token_id] = -100
-
-    # Forward pass
-    loss = model(input_ids=input_ids, attention_mask=attention_mask, labels=labels).loss
-    logger.info(f"Loss: {loss.item()}")
-
-    # Tokenise test input and generate completions
-    tokens = tokenizer(test_dataset['Source'], padding=True, return_tensors="pt", batched=True)
-    output = model.generate(**tokens, max_new_tokens=50)
-
-    # Return the generated completions along with the target completions
-    return tokenizer.batch_decode(output, skip_special_tokens=True)
-
-
 def fine_tune(train_data: pd.DataFrame, valid_data: pd.DataFrame,  checkpoints_path: str, model_path: str, eval_metric: str, random_seed):
     """"""
 
@@ -410,10 +311,11 @@ def test(test_data: pd.DataFrame, best_model_path: str) -> list[str]:
     #model.to(device)
 
     tokens = tokenizer(test_dataset['Source'], padding=True, return_tensors="pt")  #.to(device)
+    del test_dataset
     output = model.generate(**tokens, max_new_tokens=50)
 
     # Delete henceforth unused variables to save memory
-    del test_dataset, tokens
+    del tokens
 
     # Return the generated completions
     return tokenizer.batch_decode(output, skip_special_tokens=True)
