@@ -177,10 +177,10 @@ def fine_tune(train_data: pd.DataFrame, valid_data: pd.DataFrame,  checkpoints_p
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     if torch.cuda.is_available():
         model = AutoModelForSeq2SeqLM.from_pretrained(model_path, device_map="auto", load_in_8bit=True)  #   , torch_dtype=torch.float16
-        batch_size = 8
+        batch_size = 4
     else:
         model = AutoModelForSeq2SeqLM.from_pretrained(model_path)
-        batch_size = 8
+        batch_size = 4
 
     # Use a GPU if available
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -227,7 +227,7 @@ def fine_tune(train_data: pd.DataFrame, valid_data: pd.DataFrame,  checkpoints_p
     tokenized_train_dataset = Dataset.from_dict(tokenized_train_dataset)
 
     # Delete henceforth unused variables to save memory
-    del train_dataset, train_labels
+    del train_dataset, train_labels, train_data
 
     # Encode valid data set
     tokenized_valid_dataset = valid_dataset.map(
@@ -247,7 +247,7 @@ def fine_tune(train_data: pd.DataFrame, valid_data: pd.DataFrame,  checkpoints_p
     tokenized_valid_dataset = Dataset.from_dict(tokenized_valid_dataset)
 
     # Delete henceforth unused variables to save memory
-    del valid_dataset, valid_labels
+    del valid_dataset, valid_labels, valid_data
 
     # Create DataCollator object (creates train batches --> speeds up the training process)
     data_collator = DataCollatorForSeq2Seq(tokenizer=tokenizer)
@@ -265,6 +265,8 @@ def fine_tune(train_data: pd.DataFrame, valid_data: pd.DataFrame,  checkpoints_p
         evaluation_strategy="epoch",
         save_strategy="epoch",
         load_best_model_at_end=True,
+        fp16=True,  # Enable mixed precision training
+        gradient_accumulation_steps=2,  # Accumulate gradients
     )
 
     trainer = Seq2SeqTrainer(
@@ -311,8 +313,9 @@ def test(test_data: pd.DataFrame, best_model_path: str) -> list[str]:
     #model.to(device)
 
     tokens = tokenizer(test_dataset['Source'], padding=True, return_tensors="pt")  #.to(device)
-    del test_dataset
-    output = model.generate(**tokens, max_new_tokens=50)
+    del test_dataset, test_data
+    with torch.no_grad():  # Disable gradient calculation
+        output = model.generate(**tokens, max_new_tokens=50)
 
     # Delete henceforth unused variables to save memory
     del tokens
