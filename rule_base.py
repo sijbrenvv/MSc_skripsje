@@ -436,6 +436,16 @@ if __name__ == "__main__":
     # and remove two-word utterances or less.
     syn_dataset = syn_dataset.filter(lambda example: example["synthetic"] != "")
     syn_dataset = syn_dataset.filter(lambda example: len(example["synthetic"].split()) >= 3)
+    syn_dataset = syn_dataset.map(lambda example: {"synthetic": example["synthetic"].capitalize()})
+    # Capitalise preprocessed_text and remove the space before the full stop
+    syn_dataset = syn_dataset.map(
+        lambda example: {
+            "preprocessed_text": example["preprocessed_text"].capitalize().rstrip(" .") + "."
+        }
+    )
+
+    #syn_dataset = syn_dataset.map(lambda example: example["preprocessed_text"].capitalize())
+    #syn_dataset = syn_dataset.map(lambda example: example["preprocessed_text"][:-2] + ".")
 
     # Export dataset
     logger.info("Exporting the synthetic data set...")
