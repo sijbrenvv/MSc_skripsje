@@ -209,14 +209,12 @@ def fine_tune(train_data: pd.DataFrame, valid_data: pd.DataFrame,  checkpoints_p
 
     # add LoRA adaptor
     model = get_peft_model(model, lora_config)
-    #model.print_trainable_parameters()
+    logger.info(model.print_trainable_parameters())
 
     # the following  hyperparameter is task-specific. Set to max value
     max_length = 512
     #max_source_length = 512
     #max_target_length = 512
-
-    logger.info(train_dataset)
 
     # Add prefix to the train (source) utterances
     logger.info(f"Adding prefix...")
@@ -225,9 +223,6 @@ def fine_tune(train_data: pd.DataFrame, valid_data: pd.DataFrame,  checkpoints_p
             "Source": "Complete this sentence: " + example["Source"]
         }
     )
-
-    logger.info(train_dataset)
-    exit()
 
     # Encode train data set
     tokenized_train_dataset = train_dataset.map(
@@ -294,7 +289,7 @@ def fine_tune(train_data: pd.DataFrame, valid_data: pd.DataFrame,  checkpoints_p
         evaluation_strategy="epoch",
         save_strategy="epoch",
         load_best_model_at_end=True,
-        #fp16=True,  # Enable mixed precision training
+        fp16=True,  # Enable mixed precision training
         #gradient_accumulation_steps=2,  # Accumulate gradients
     )
 
@@ -309,10 +304,10 @@ def fine_tune(train_data: pd.DataFrame, valid_data: pd.DataFrame,  checkpoints_p
     )
 
     # Clear CUDA cache
-    #torch.cuda.empty_cache()
+    torch.cuda.empty_cache()
 
     # Use gradient checkpointing during training
-    #model.gradient_checkpointing_enable()
+    model.gradient_checkpointing_enable()
 
     # Train (fine-tune) the model
     trainer.train()
@@ -330,13 +325,13 @@ def fine_tune(train_data: pd.DataFrame, valid_data: pd.DataFrame,  checkpoints_p
     del trainer, data_collator, model, tokenizer
 
     # Clear CUDA cache
-    #torch.cuda.empty_cache()
+    torch.cuda.empty_cache()
 
 
 def test(test_data: pd.DataFrame, best_model_path: str) -> list[str]:
     """ """
     # Clear CUDA cache
-    #torch.cuda.empty_cache()
+    torch.cuda.empty_cache()
 
     # Pandas dataframe to huggingface Dataset
     test_dataset = Dataset.from_pandas(test_data)
@@ -361,7 +356,7 @@ def test(test_data: pd.DataFrame, best_model_path: str) -> list[str]:
     #model.to(device)
 
     # Use gradient checkpointing during inference
-    #model.gradient_checkpointing_enable()
+    model.gradient_checkpointing_enable()
 
     """
     # Function to generate predictions for a batch
@@ -387,15 +382,23 @@ def test(test_data: pd.DataFrame, best_model_path: str) -> list[str]:
     """
 
     # Tokenise using a simple prefix (the same as Misra and colleagues)
-    tokens = tokenizer(['Complete this sentence: ' + s for s in test_dataset['Source']], padding=True, return_tensors="pt")
-
-    #tokens = tokenizer(test_dataset['Source'], padding=True, return_tensors="pt")  #.to(device)
+    logger.info(f"Adding prefix...")
+    test_dataset = test_dataset.map(
+        lambda example: {
+            "Source": "Complete this sentence: " + example["Source"]
+        }
+    )
+    #tokens = tokenizer(['Complete this sentence: ' + s for s in test_dataset['Source']], padding=True, return_tensors="pt")
+    tokens = tokenizer(test_dataset['Source'], padding=True, return_tensors="pt")  #.to(device)
 
     del test_dataset, test_data
 
+    # Clear CUDA cache
+    torch.cuda.empty_cache()
+
     # Disable gradient calculation
-    #with torch.no_grad():
-    output = model.generate(**tokens, max_new_tokens=50)
+    with torch.no_grad():
+        output = model.generate(**tokens, max_new_tokens=50)
 
     # Clear CUDA cache
     #torch.cuda.empty_cache()
