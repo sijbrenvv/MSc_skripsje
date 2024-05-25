@@ -216,6 +216,19 @@ def fine_tune(train_data: pd.DataFrame, valid_data: pd.DataFrame,  checkpoints_p
     #max_source_length = 512
     #max_target_length = 512
 
+    logger.info(train_dataset)
+
+    # Add prefix to the train (source) utterances
+    logger.info(f"Adding prefix...")
+    train_dataset = train_dataset.map(
+        lambda example: {
+            "Source": "Complete this sentence: " + example["Source"]
+        }
+    )
+
+    logger.info(train_dataset)
+    exit()
+
     # Encode train data set
     tokenized_train_dataset = train_dataset.map(
         tokenize_function,
@@ -236,6 +249,14 @@ def fine_tune(train_data: pd.DataFrame, valid_data: pd.DataFrame,  checkpoints_p
 
     # Delete henceforth unused variables to save memory
     del train_dataset, train_labels, train_data
+
+    # Add prefix to the valid (source) utterances
+    logger.info(f"Adding prefix...")
+    valid_dataset = valid_dataset.map(
+        lambda example: {
+            "Source": "Complete this sentence: " + example["Source"]
+        }
+    )
 
     # Encode valid data set
     tokenized_valid_dataset = valid_dataset.map(
@@ -273,8 +294,8 @@ def fine_tune(train_data: pd.DataFrame, valid_data: pd.DataFrame,  checkpoints_p
         evaluation_strategy="epoch",
         save_strategy="epoch",
         load_best_model_at_end=True,
-        fp16=True,  # Enable mixed precision training
-        gradient_accumulation_steps=2,  # Accumulate gradients
+        #fp16=True,  # Enable mixed precision training
+        #gradient_accumulation_steps=2,  # Accumulate gradients
     )
 
     trainer = Seq2SeqTrainer(
@@ -287,6 +308,12 @@ def fine_tune(train_data: pd.DataFrame, valid_data: pd.DataFrame,  checkpoints_p
         compute_metrics=lambda p: compute_metrics(p, tokenizer, eval_metric)  # Pass tokenizer and eval_metric as arguments
     )
 
+    # Clear CUDA cache
+    #torch.cuda.empty_cache()
+
+    # Use gradient checkpointing during training
+    #model.gradient_checkpointing_enable()
+
     # Train (fine-tune) the model
     trainer.train()
 
@@ -298,18 +325,18 @@ def fine_tune(train_data: pd.DataFrame, valid_data: pd.DataFrame,  checkpoints_p
 
     trainer.save_model(best_model_path)
 
-    # Clear CUDA cache
-    torch.cuda.empty_cache()
-
     # Delete henceforth unused variables to save memory
     del tokenized_train_dataset, tokenized_valid_dataset
     del trainer, data_collator, model, tokenizer
+
+    # Clear CUDA cache
+    #torch.cuda.empty_cache()
 
 
 def test(test_data: pd.DataFrame, best_model_path: str) -> list[str]:
     """ """
     # Clear CUDA cache
-    torch.cuda.empty_cache()
+    #torch.cuda.empty_cache()
 
     # Pandas dataframe to huggingface Dataset
     test_dataset = Dataset.from_pandas(test_data)
@@ -334,8 +361,9 @@ def test(test_data: pd.DataFrame, best_model_path: str) -> list[str]:
     #model.to(device)
 
     # Use gradient checkpointing during inference
-    model.gradient_checkpointing_enable()
+    #model.gradient_checkpointing_enable()
 
+    """
     # Function to generate predictions for a batch
     def generate_batch(inputs):
         tokens = tokenizer(inputs, return_tensors="pt", padding=True, truncation=True, max_length=512)#.to(device)
@@ -347,35 +375,39 @@ def test(test_data: pd.DataFrame, best_model_path: str) -> list[str]:
     batch_size = 8
     test_inputs = test_dataset['Source']
     batches = [test_inputs[i:i + batch_size] for i in range(0, len(test_inputs), batch_size)]
-
-    del test_dataset, test_data
-
+    
     # Generate predictions for each batch
     all_completions = []
     for batch in batches:
         predictions = generate_batch(batch)
         for pred in predictions:
             all_completions.append(pred)
+    
+    return all_completions
+    """
 
-    #tokens = tokenizer(test_dataset['Source'], padding=True, truncation=True, max_length=512, return_tensors="pt")  #.to(device)
+    # Tokenise using a simple prefix (the same as Misra and colleagues)
+    tokens = tokenizer(['Complete this sentence: ' + s for s in test_dataset['Source']], padding=True, return_tensors="pt")
+
+    #tokens = tokenizer(test_dataset['Source'], padding=True, return_tensors="pt")  #.to(device)
+
+    del test_dataset, test_data
 
     # Disable gradient calculation
     #with torch.no_grad():
-    #    output = model.generate(**tokens, max_new_tokens=50)
+    output = model.generate(**tokens, max_new_tokens=50)
 
     # Clear CUDA cache
     #torch.cuda.empty_cache()
 
     # Print memory summary
-    logger.info(torch.cuda.memory_summary(device=None, abbreviated=False))
-
-    return all_completions
+    #logger.info(torch.cuda.memory_summary(device=None, abbreviated=False))
 
     # Delete henceforth unused variables to save memory
-    #del tokens
+    del tokens
 
     # Return the generated completions
-    #return tokenizer.batch_decode(output, skip_special_tokens=True)
+    return tokenizer.batch_decode(output, skip_special_tokens=True)
 
 
 def evaluate_comp(gen_comp: list, tar_comp: list) -> dict[str:list]:
@@ -387,24 +419,24 @@ def evaluate_comp(gen_comp: list, tar_comp: list) -> dict[str:list]:
     Returns:
         Dictionary: The BLEU, ChrF and Cosine similarity (T5 emb) scores for each sentence pair.
     """
-    bleu = evaluate.load("bleu")
+    #bleu = evaluate.load("bleu")
     #meteor = evaluate.load("meteor")
     chrf = evaluate.load("chrf")
 
     ### Revise extracting of embeddings: extract them all prior to the loop. \
     ### The current way is naive: calls the functions in each iteration
-    bleu_scores = []
+    #bleu_scores = []
     #meteor_scores = []
     chrf_scores = []
     con_sent_emb_cs = []
     for c, v in enumerate(gen_comp):
-        bleu_scores.append(bleu.compute(predictions=[v], references=[tar_comp[c]])['bleu'])
+        #bleu_scores.append(bleu.compute(predictions=[v], references=[tar_comp[c]])['bleu'])
         #meteor_scores.append(meteor.compute(predictions=[v], references=[tar_comp[c]])['meteor'])
         chrf_scores.append(chrf.compute(predictions=[v], references=[tar_comp[c]])['score'])
         con_sent_emb_cs.append(cosine_similarity(con_sent_emb(v,tar_comp[c]))[0][1])
 
     return {
-        "bleu_sc": bleu_scores,
+        #"bleu_sc": bleu_scores,
         "cs_t5": con_sent_emb_cs,
         #"meteor_sc": meteor_scores,
         "chrf_sc": chrf_scores
@@ -453,7 +485,7 @@ if __name__ == "__main__":
         "-em",
         type=str,
         help="Name of the evaluation metric to use during training. Default: 'bleu'.",
-        choices=["bleu", "chrf", "google_bleu", "meteor"],
+        choices=["bleu", "chrf", "google_bleu"],
         default="bleu"
     )
     parser.add_argument(
@@ -509,7 +541,7 @@ if __name__ == "__main__":
         "Target": test_df['Target'].to_list(),
         "Gen_comp": gen_comp_ft,
         #"Meteor": eval_sc['meteor_sc'],
-        "Bleu": eval_sc['bleu_sc'],
+        #"Bleu": eval_sc['bleu_sc'],
         "ChrF": eval_sc['chrf_sc'],
         "Cos_sim_t5": eval_sc['cs_t5']
     })
