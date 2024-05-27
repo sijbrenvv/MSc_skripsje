@@ -1,6 +1,7 @@
 import argparse
 import logging
 import os
+import gc
 import evaluate
 import numpy as np
 import pandas as pd
@@ -13,6 +14,7 @@ from transformers import (
     Seq2SeqTrainingArguments,
     Seq2SeqTrainer,
     BitsAndBytesConfig,
+    EarlyStoppingCallback,
 )
 import torch
 from sentence_transformers import SentenceTransformer
@@ -165,7 +167,7 @@ def compute_metrics(eval_pred, tokenizer, eval_metric: str) -> dict[str:float]:
     return results
 
 
-def fine_tune(train_data: pd.DataFrame, valid_data: pd.DataFrame,  checkpoints_path: str, model_path: str, eval_metric: str, random_seed):
+def fine_tune(train_data: pd.DataFrame, valid_data: pd.DataFrame,  checkpoints_path: str, model_path: str, eval_metric: str, random_seed: int, prefix: str):
     """"""
 
     # Pandas dataframe to huggingface Dataset
@@ -177,7 +179,7 @@ def fine_tune(train_data: pd.DataFrame, valid_data: pd.DataFrame,  checkpoints_p
     # Get tokeniser and model from huggingface
     tokenizer = AutoTokenizer.from_pretrained(model_path)
 
-    # Define BitsandBytesConfig
+    # Define BitsAndBytesConfig
     quantization_config = BitsAndBytesConfig(
         load_in_8bit=True,
         quantization_dtype=torch.float16,
@@ -212,15 +214,15 @@ def fine_tune(train_data: pd.DataFrame, valid_data: pd.DataFrame,  checkpoints_p
     logger.info(model.print_trainable_parameters())
 
     # the following  hyperparameter is task-specific. Set to max value
-    max_length = 512
+    max_length = 256
     #max_source_length = 512
     #max_target_length = 512
 
     # Add prefix to the train (source) utterances
-    logger.info(f"Adding prefix...")
+    logger.info(f"Adding prefix to train set...")
     train_dataset = train_dataset.map(
         lambda example: {
-            "Source": "Complete this sentence: " + example["Source"]
+            "Source": prefix + example["Source"]
         }
     )
 
@@ -242,14 +244,15 @@ def fine_tune(train_data: pd.DataFrame, valid_data: pd.DataFrame,  checkpoints_p
     tokenized_train_dataset["labels"] = train_labels
     tokenized_train_dataset = Dataset.from_dict(tokenized_train_dataset)
 
-    # Delete henceforth unused variables to save memory
+    # Clear memory
     del train_dataset, train_labels, train_data
+    #gc.collect()
 
     # Add prefix to the valid (source) utterances
-    logger.info(f"Adding prefix...")
+    logger.info(f"Adding prefix to valid/dev set...")
     valid_dataset = valid_dataset.map(
         lambda example: {
-            "Source": "Complete this sentence: " + example["Source"]
+            "Source": prefix + example["Source"]
         }
     )
 
@@ -270,8 +273,9 @@ def fine_tune(train_data: pd.DataFrame, valid_data: pd.DataFrame,  checkpoints_p
     tokenized_valid_dataset["labels"] = valid_labels
     tokenized_valid_dataset = Dataset.from_dict(tokenized_valid_dataset)
 
-    # Delete henceforth unused variables to save memory
+    # Clear memory
     del valid_dataset, valid_labels, valid_data
+    #gc.collect()
 
     # Create DataCollator object (creates train batches --> speeds up the training process)
     data_collator = DataCollatorForSeq2Seq(tokenizer=tokenizer)
@@ -284,13 +288,14 @@ def fine_tune(train_data: pd.DataFrame, valid_data: pd.DataFrame,  checkpoints_p
         per_device_eval_batch_size=batch_size,
         num_train_epochs=1,
         weight_decay=0.01,
-        predict_with_generate=True,  # We perform a generation task and use BLEU as eval metric
-        #metric_for_best_model="meteor",  # Use bleu score to improve the model, might use another metric
+        predict_with_generate=True,  # We perform a generation task
         evaluation_strategy="epoch",
         save_strategy="epoch",
         load_best_model_at_end=True,
-        fp16=True,  # Enable mixed precision training
+        fp16=True,
         #gradient_accumulation_steps=2,  # Accumulate gradients
+        #logging_dir=checkpoints_path + "/logs",
+        #logging_steps=10,
     )
 
     trainer = Seq2SeqTrainer(
@@ -300,7 +305,8 @@ def fine_tune(train_data: pd.DataFrame, valid_data: pd.DataFrame,  checkpoints_p
         eval_dataset=tokenized_valid_dataset,
         tokenizer=tokenizer,
         data_collator=data_collator,
-        compute_metrics=lambda p: compute_metrics(p, tokenizer, eval_metric)  # Pass tokenizer and eval_metric as arguments
+        compute_metrics=lambda p: compute_metrics(p, tokenizer, eval_metric),  # Pass tokeniser and eval_metric as arguments
+        #callbacks = [EarlyStoppingCallback(early_stopping_patience=2)]
     )
 
     # Clear CUDA cache
@@ -320,15 +326,16 @@ def fine_tune(train_data: pd.DataFrame, valid_data: pd.DataFrame,  checkpoints_p
 
     trainer.save_model(best_model_path)
 
-    # Delete henceforth unused variables to save memory
+    # Clear memory
     del tokenized_train_dataset, tokenized_valid_dataset
     del trainer, data_collator, model, tokenizer
+    #gc.collect()
 
     # Clear CUDA cache
     torch.cuda.empty_cache()
 
 
-def test(test_data: pd.DataFrame, best_model_path: str) -> list[str]:
+def test(test_data: pd.DataFrame, best_model_path: str, prefix: str) -> list[str]:
     """ """
     # Clear CUDA cache
     torch.cuda.empty_cache()
@@ -339,7 +346,7 @@ def test(test_data: pd.DataFrame, best_model_path: str) -> list[str]:
     # Get tokeniser from saved model and load best model
     tokenizer = AutoTokenizer.from_pretrained(best_model_path)
 
-    # Define BitsandBytesConfig
+    # Define BitsAndBytesConfig
     quantization_config = BitsAndBytesConfig(
         load_in_8bit=True,
         quantization_dtype=torch.float16,
@@ -382,23 +389,27 @@ def test(test_data: pd.DataFrame, best_model_path: str) -> list[str]:
     """
 
     # Tokenise using a simple prefix (the same as Misra and colleagues)
-    logger.info(f"Adding prefix...")
+    logger.info(f"Adding prefix to test set...")
     test_dataset = test_dataset.map(
         lambda example: {
-            "Source": "Complete this sentence: " + example["Source"]
+            "Source": prefix + example["Source"]
         }
     )
     #tokens = tokenizer(['Complete this sentence: ' + s for s in test_dataset['Source']], padding=True, return_tensors="pt")
     tokens = tokenizer(test_dataset['Source'], padding=True, return_tensors="pt")  #.to(device)
 
+    # Clear memory
     del test_dataset, test_data
+    #gc.collect()
 
     # Clear CUDA cache
     torch.cuda.empty_cache()
 
+    #logger.info(torch.cuda.memory_summary(device=None, abbreviated=False))
+
     # Disable gradient calculation
-    with torch.no_grad():
-        output = model.generate(**tokens, max_new_tokens=50)
+    #with torch.no_grad():
+    output = model.generate(**tokens, max_new_tokens=30)
 
     # Clear CUDA cache
     #torch.cuda.empty_cache()
@@ -406,8 +417,9 @@ def test(test_data: pd.DataFrame, best_model_path: str) -> list[str]:
     # Print memory summary
     #logger.info(torch.cuda.memory_summary(device=None, abbreviated=False))
 
-    # Delete henceforth unused variables to save memory
+    # Clear memory
     del tokens
+    #gc.collect()
 
     # Return the generated completions
     return tokenizer.batch_decode(output, skip_special_tokens=True)
@@ -499,6 +511,13 @@ if __name__ == "__main__":
         default=0,
         type=int,
     )
+    parser.add_argument(
+        "--prefix",
+        "-px",
+        type=str,
+        help="The prefix to use, include colon followed by a space ': '!. Default: ''",
+        default=""
+    )
 
     args = parser.parse_args()
 
@@ -515,6 +534,7 @@ if __name__ == "__main__":
     dev_path = args.dev_file_path  # For example, 'val.json'
     model = args.huggingface_model  # For example, 'google/flan-t5-small'
     eval_metric = args.eval_metric  # For example, 'bleu'
+    pref = args.prefix  # For example, 'Complete this sentence: '
 
     # Get the data for the train and dev sets
     logger.info(f"Loading the data...")
@@ -530,13 +550,14 @@ if __name__ == "__main__":
         checkpoints_path=f"models/{model}/{args.random_seed}",
         model_path=model,
         eval_metric=eval_metric,
-        random_seed=args.random_seed
+        random_seed=args.random_seed,
+        prefix=pref,
     )
     del train_df, val_df
 
     # Test completion model
     logger.info(f"Testing completion model...")
-    gen_comp_ft = test(test_data=test_df, best_model_path=f"models/{model}/{args.random_seed}/best/")
+    gen_comp_ft = test(test_data=test_df, best_model_path=f"models/{model}/{args.random_seed}/best/", prefix=pref)
     eval_sc = evaluate_comp(gen_comp=gen_comp_ft, tar_comp=test_df['Target'].to_list())
 
     output_df = pd.DataFrame({
