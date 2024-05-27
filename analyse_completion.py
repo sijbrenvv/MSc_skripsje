@@ -73,3 +73,7 @@ if __name__ == "__main__":
     logger.info(data.ChrF.describe())
     logger.info(data.Cos_sim_t5.describe())
 
+    print(f"Describing the evaluation metrics for '{input_path.split('/')[-1]}'...")
+    print(data.ChrF.describe())
+    print(data.Cos_sim_t5.describe())
+
