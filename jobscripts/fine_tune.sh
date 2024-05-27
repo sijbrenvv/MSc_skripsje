@@ -30,17 +30,25 @@ export "PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True"
 # The synthetic data source (Control or SBCSAE) is a command line argument
 data_source=$1
 
-# Bleu
-#python3 fine_tune_t5.py -tr data/${data_source}/${data_source}_train.json -dev data/${data_source}/${data_source}_dev.json -te data/${data_source}/${data_source}_test.json -out exp/${data_source}/flan-t5-xl_fine-tune_bleu -hf google/flan-t5-xl -em bleu
+# flan-t5-xl, no prefix, ChrF
+python3 fine_tune_t5.py -tr data/${data_source}/${data_source}_train.json -dev data/${data_source}/${data_source}_dev.json -te data/${data_source}/${data_source}_test.json -out exp/${data_source}/flan-t5-xl_nopx_fine-tune_chrf -hf google/flan-t5-xl -em chrf
 
-# Meteor
-#python3 fine_tune_t5.py -tr data/${data_source}/${data_source}_train.json -dev data/${data_source}/${data_source}_dev.json -te data/${data_source}/${data_source}_test.json -out exp/${data_source}/flan-t5-xl_fine-tune_meteor -hf google/flan-t5-xl -em meteor
+# flan-t5-xl, "Complete this sentence: ", ChrF
+python3 fine_tune_t5.py -tr data/${data_source}/${data_source}_train.json -dev data/${data_source}/${data_source}_dev.json -te data/${data_source}/${data_source}_test.json -out exp/${data_source}/flan-t5-xl_cts_fine-tune_chrf -hf google/flan-t5-xl -em chrf -px "Complete this sentence: "
 
-# ChrF
-python3 fine_tune_t5.py -tr data/${data_source}/${data_source}_train.json -dev data/${data_source}/${data_source}_dev.json -te data/${data_source}/${data_source}_test.json -out exp/${data_source}/flan-t5-xl_pref_fine-tune_chrf -hf google/flan-t5-xl -em chrf
 
-# Google Bleu
-#python3 fine_tune_t5.py -tr data/${data_source}/${data_source}_train.json -dev data/${data_source}/${data_source}_dev.json -te data/${data_source}/${data_source}_test.json -out exp/${data_source}/flan-t5-xl_fine-tune_google_bleu -hf google/flan-t5-xl -em google_bleu
+# No prefix, ChrF
+## flan-t5-base
+#python3 fine_tune_t5.py -tr data/${data_source}/${data_source}_train.json -dev data/${data_source}/${data_source}_dev.json -te data/${data_source}/${data_source}_test.json -out exp/${data_source}/flan-t5-base_nopx_fine-tune_chrf -hf google/flan-t5-base -em chrf
+## t5-base
+#python3 fine_tune_t5.py -tr data/${data_source}/${data_source}_train.json -dev data/${data_source}/${data_source}_dev.json -te data/${data_source}/${data_source}_test.json -out exp/${data_source}/t5-base_nopx_fine-tune_chrf -hf google/t5-base -em chrf
+
+# "Complete this sentence: ", ChrF
+## flan-t5-base
+#python3 fine_tune_t5.py -tr data/${data_source}/${data_source}_train.json -dev data/${data_source}/${data_source}_dev.json -te data/${data_source}/${data_source}_test.json -out exp/${data_source}/flan-t5-base_cts_fine-tune_chrf -hf google/flan-t5-base -em chrf -px "Complete this sentence: "
+## t5-base
+#python3 fine_tune_t5.py -tr data/${data_source}/${data_source}_train.json -dev data/${data_source}/${data_source}_dev.json -te data/${data_source}/${data_source}_test.json -out exp/${data_source}/t5-base_cts_fine-tune_chrf -hf google/t5-base -em chrf -px "Complete this sentence: "
+
 
 # Backup scripts
 cp fine_tune_t5.py exp/${data_source}/

@@ -286,7 +286,7 @@ def fine_tune(train_data: pd.DataFrame, valid_data: pd.DataFrame,  checkpoints_p
         learning_rate=1e-4,  # 1e-4 or 3e-4 typically works best according to the T5 documentation
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
-        num_train_epochs=1,
+        num_train_epochs=5,
         weight_decay=0.01,
         predict_with_generate=True,  # We perform a generation task
         evaluation_strategy="epoch",
@@ -294,8 +294,8 @@ def fine_tune(train_data: pd.DataFrame, valid_data: pd.DataFrame,  checkpoints_p
         load_best_model_at_end=True,
         fp16=True,
         #gradient_accumulation_steps=2,  # Accumulate gradients
-        #logging_dir=checkpoints_path + "/logs",
-        #logging_steps=10,
+        logging_dir=checkpoints_path + "/logs",
+        logging_steps=5,
     )
 
     trainer = Seq2SeqTrainer(
@@ -306,7 +306,7 @@ def fine_tune(train_data: pd.DataFrame, valid_data: pd.DataFrame,  checkpoints_p
         tokenizer=tokenizer,
         data_collator=data_collator,
         compute_metrics=lambda p: compute_metrics(p, tokenizer, eval_metric),  # Pass tokeniser and eval_metric as arguments
-        #callbacks = [EarlyStoppingCallback(early_stopping_patience=2)]
+        callbacks=[EarlyStoppingCallback(early_stopping_patience=2)]
     )
 
     # Clear CUDA cache
