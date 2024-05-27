@@ -211,20 +211,21 @@ def fine_tune(train_data: pd.DataFrame, valid_data: pd.DataFrame,  checkpoints_p
 
     # add LoRA adaptor
     model = get_peft_model(model, lora_config)
-    logger.info(model.print_trainable_parameters())
+    logger.info(f"Trainable parameters: {model.print_trainable_parameters()}")
 
     # the following  hyperparameter is task-specific. Set to max value
     max_length = 256
     #max_source_length = 512
     #max_target_length = 512
 
-    # Add prefix to the train (source) utterances
-    logger.info(f"Adding prefix to train set...")
-    train_dataset = train_dataset.map(
-        lambda example: {
-            "Source": prefix + example["Source"]
-        }
-    )
+    if prefix != "":
+        # Add prefix to the train (source) utterances
+        logger.info(f"Adding prefix to train set...")
+        train_dataset = train_dataset.map(
+            lambda example: {
+                "Source": prefix + example["Source"]
+            }
+        )
 
     # Encode train data set
     tokenized_train_dataset = train_dataset.map(
@@ -248,13 +249,14 @@ def fine_tune(train_data: pd.DataFrame, valid_data: pd.DataFrame,  checkpoints_p
     del train_dataset, train_labels, train_data
     #gc.collect()
 
-    # Add prefix to the valid (source) utterances
-    logger.info(f"Adding prefix to valid/dev set...")
-    valid_dataset = valid_dataset.map(
-        lambda example: {
-            "Source": prefix + example["Source"]
-        }
-    )
+    if prefix != "":
+        # Add prefix to the valid (source) utterances
+        logger.info(f"Adding prefix to valid/dev set...")
+        valid_dataset = valid_dataset.map(
+            lambda example: {
+                "Source": prefix + example["Source"]
+            }
+        )
 
     # Encode valid data set
     tokenized_valid_dataset = valid_dataset.map(
@@ -295,7 +297,7 @@ def fine_tune(train_data: pd.DataFrame, valid_data: pd.DataFrame,  checkpoints_p
         fp16=True,
         #gradient_accumulation_steps=2,  # Accumulate gradients
         logging_dir=checkpoints_path + "/logs",
-        logging_steps=5,
+        #logging_steps=5,
     )
 
     trainer = Seq2SeqTrainer(
@@ -388,13 +390,14 @@ def test(test_data: pd.DataFrame, best_model_path: str, prefix: str) -> list[str
     return all_completions
     """
 
-    # Tokenise using a simple prefix (the same as Misra and colleagues)
-    logger.info(f"Adding prefix to test set...")
-    test_dataset = test_dataset.map(
-        lambda example: {
-            "Source": prefix + example["Source"]
-        }
-    )
+    if prefix != "":
+        # Tokenise using a simple prefix (the same as Misra and colleagues)
+        logger.info(f"Adding prefix to test set...")
+        test_dataset = test_dataset.map(
+            lambda example: {
+                "Source": prefix + example["Source"]
+            }
+        )
     #tokens = tokenizer(['Complete this sentence: ' + s for s in test_dataset['Source']], padding=True, return_tensors="pt")
     tokens = tokenizer(test_dataset['Source'], padding=True, return_tensors="pt")  #.to(device)
 
