@@ -70,7 +70,6 @@ if __name__ == "__main__":
     data = get_data(input_path)
 
     logger.info(f"Describing the evaluation metrics for '{input_path.split('/')[-1]}'...")
-    logger.info(data.Bleu.describe())
     logger.info(data.ChrF.describe())
     logger.info(data.Cos_sim_t5.describe())
 
