@@ -218,7 +218,7 @@ def fine_tune(train_data: pd.DataFrame, valid_data: pd.DataFrame,  checkpoints_p
     #max_source_length = 512
     #max_target_length = 512
 
-    if prefix != "":
+    if prefix != " ":
         # Add prefix to the train (source) utterances
         logger.info(f"Adding prefix to train set...")
         train_dataset = train_dataset.map(
@@ -249,7 +249,7 @@ def fine_tune(train_data: pd.DataFrame, valid_data: pd.DataFrame,  checkpoints_p
     del train_dataset, train_labels, train_data
     #gc.collect()
 
-    if prefix != "":
+    if prefix != " ":
         # Add prefix to the valid (source) utterances
         logger.info(f"Adding prefix to valid/dev set...")
         valid_dataset = valid_dataset.map(
@@ -390,7 +390,7 @@ def test(test_data: pd.DataFrame, best_model_path: str, prefix: str) -> list[str
     return all_completions
     """
 
-    if prefix != "":
+    if prefix != " ":
         # Tokenise using a simple prefix (the same as Misra and colleagues)
         logger.info(f"Adding prefix to test set...")
         test_dataset = test_dataset.map(
@@ -518,8 +518,8 @@ if __name__ == "__main__":
         "--prefix",
         "-px",
         type=str,
-        help="The prefix to use, include colon followed by a space ': '!. Default: ''",
-        default=""
+        help="The prefix to use, include colon followed by a space ': '!. Default: ' '",
+        default=" "
     )
 
     args = parser.parse_args()
