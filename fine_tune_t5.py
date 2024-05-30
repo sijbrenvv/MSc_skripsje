@@ -214,7 +214,7 @@ def fine_tune(train_data: pd.DataFrame, valid_data: pd.DataFrame,  checkpoints_p
     logger.info(f"Trainable parameters: {model.print_trainable_parameters()}")
 
     # the following  hyperparameter is task-specific. Set to max value
-    max_length = 256
+    max_length = 128
     #max_source_length = 512
     #max_target_length = 512
 
@@ -412,7 +412,7 @@ def test(test_data: pd.DataFrame, best_model_path: str, prefix: str) -> list[str
 
     # Disable gradient calculation
     #with torch.no_grad():
-    output = model.generate(**tokens, max_new_tokens=30)
+    output = model.generate(**tokens, max_new_tokens=25)
 
     # Clear CUDA cache
     #torch.cuda.empty_cache()
