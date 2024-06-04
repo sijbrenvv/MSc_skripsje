@@ -218,7 +218,7 @@ def fine_tune(train_data: pd.DataFrame, valid_data: pd.DataFrame,  checkpoints_p
     #max_source_length = 512
     #max_target_length = 512
 
-    if prefix != " ":
+    if prefix != "":
         # Add prefix to the train (source) utterances
         logger.info(f"Adding prefix to train set...")
         train_dataset = train_dataset.map(
@@ -249,7 +249,7 @@ def fine_tune(train_data: pd.DataFrame, valid_data: pd.DataFrame,  checkpoints_p
     del train_dataset, train_labels, train_data
     #gc.collect()
 
-    if prefix != " ":
+    if prefix != "":
         # Add prefix to the valid (source) utterances
         logger.info(f"Adding prefix to valid/dev set...")
         valid_dataset = valid_dataset.map(
@@ -288,15 +288,15 @@ def fine_tune(train_data: pd.DataFrame, valid_data: pd.DataFrame,  checkpoints_p
         learning_rate=1e-4,  # 1e-4 or 3e-4 typically works best according to the T5 documentation
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
-        num_train_epochs=5,
+        num_train_epochs=1,
         weight_decay=0.01,
         predict_with_generate=True,  # We perform a generation task
         evaluation_strategy="epoch",
         save_strategy="epoch",
         load_best_model_at_end=True,
-        fp16=True,
+        #fp16=True,
         #gradient_accumulation_steps=2,  # Accumulate gradients
-        logging_dir=checkpoints_path + "/logs",
+        #logging_dir=checkpoints_path + "/logs",
         #logging_steps=5,
     )
 
@@ -308,7 +308,7 @@ def fine_tune(train_data: pd.DataFrame, valid_data: pd.DataFrame,  checkpoints_p
         tokenizer=tokenizer,
         data_collator=data_collator,
         compute_metrics=lambda p: compute_metrics(p, tokenizer, eval_metric),  # Pass tokeniser and eval_metric as arguments
-        callbacks=[EarlyStoppingCallback(early_stopping_patience=2)]
+        #callbacks=[EarlyStoppingCallback(early_stopping_patience=2)]
     )
 
     # Clear CUDA cache
@@ -390,7 +390,7 @@ def test(test_data: pd.DataFrame, best_model_path: str, prefix: str) -> list[str
     return all_completions
     """
 
-    if prefix != " ":
+    if prefix != "":
         # Tokenise using a simple prefix (the same as Misra and colleagues)
         logger.info(f"Adding prefix to test set...")
         test_dataset = test_dataset.map(
@@ -519,7 +519,7 @@ if __name__ == "__main__":
         "-px",
         type=str,
         help="The prefix to use, include colon followed by a space ': '!. Default: ' '",
-        default=" "
+        default=""
     )
 
     args = parser.parse_args()
