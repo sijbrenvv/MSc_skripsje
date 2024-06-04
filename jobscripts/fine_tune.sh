@@ -31,39 +31,36 @@ export "PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True"
 data_source=$1
 
 # Completion models
-####!!!!!!! If t5-3b crashes again, use t5-large instead. \
-#### It can be validated by t5 inability to be quantised (too large for the hardware) \
-#### and it still provides us with insights in the impact of the model's number of parameters.
 ## No prefix, ChrF
 ### flan-t5-xl
-#python3 fine_tune_t5.py -tr data/${data_source}/${data_source}_train.json -dev data/${data_source}/${data_source}_dev.json -te data/${data_source}/${data_source}_test.json -out exp/${data_source}/flan-t5-xl_nopx_fine-tune_chrf -hf google/flan-t5-xl -em chrf
+python3 fine_tune_t5.py -tr data/${data_source}/${data_source}_train.json -dev data/${data_source}/${data_source}_dev.json -te data/${data_source}/${data_source}_test.json -out exp/${data_source}/flan-t5-xl_nopx_fine-tune_chrf -hf google/flan-t5-xl -em chrf
 ### t5-3b
-python3 fine_tune_t5.py -tr data/${data_source}/${data_source}_train.json -dev data/${data_source}/${data_source}_dev.json -te data/${data_source}/${data_source}_test.json -out exp/${data_source}/t5-3b_nopx_fine-tune_chrf -hf google-t5/t5-3b -em chrf
+#python3 fine_tune_t5.py -tr data/${data_source}/${data_source}_train.json -dev data/${data_source}/${data_source}_dev.json -te data/${data_source}/${data_source}_test.json -out exp/${data_source}/t5-3b_nopx_fine-tune_chrf -hf google-t5/t5-3b -em chrf
 ### t5-large
-#python3 fine_tune_t5.py -tr data/${data_source}/${data_source}_train.json -dev data/${data_source}/${data_source}_dev.json -te data/${data_source}/${data_source}_test.json -out exp/${data_source}/t5-large_nopx_fine-tune_chrf -hf google-t5/t5-large -em chrf
+python3 fine_tune_t5.py -tr data/${data_source}/${data_source}_train.json -dev data/${data_source}/${data_source}_dev.json -te data/${data_source}/${data_source}_test.json -out exp/${data_source}/t5-large_nopx_fine-tune_chrf -hf google-t5/t5-large -em chrf
 
 
 ##"Complete this sentence: ", ChrF
 ### flan-t5-xl
-#python3 fine_tune_t5.py -tr data/${data_source}/${data_source}_train.json -dev data/${data_source}/${data_source}_dev.json -te data/${data_source}/${data_source}_test.json -out exp/${data_source}/flan-t5-xl_cts_fine-tune_chrf -hf google/flan-t5-xl -em chrf -px "Complete this sentence: "
+python3 fine_tune_t5.py -tr data/${data_source}/${data_source}_train.json -dev data/${data_source}/${data_source}_dev.json -te data/${data_source}/${data_source}_test.json -out exp/${data_source}/flan-t5-xl_cts_fine-tune_chrf -hf google/flan-t5-xl -em chrf -px "Complete this sentence: "
 ### t5-3b
-python3 fine_tune_t5.py -tr data/${data_source}/${data_source}_train.json -dev data/${data_source}/${data_source}_dev.json -te data/${data_source}/${data_source}_test.json -out exp/${data_source}/t5-3b_cts_fine-tune_chrf -hf google-t5/t5-3b -em chrf -px "Complete this sentence: "
+#python3 fine_tune_t5.py -tr data/${data_source}/${data_source}_train.json -dev data/${data_source}/${data_source}_dev.json -te data/${data_source}/${data_source}_test.json -out exp/${data_source}/t5-3b_cts_fine-tune_chrf -hf google-t5/t5-3b -em chrf -px "Complete this sentence: "
 ### t5-large
-#python3 fine_tune_t5.py -tr data/${data_source}/${data_source}_train.json -dev data/${data_source}/${data_source}_dev.json -te data/${data_source}/${data_source}_test.json -out exp/${data_source}/t5-large_cts_fine-tune_chrf -hf google-t5/t5-large -em chrf -px "Complete this sentence: "
+python3 fine_tune_t5.py -tr data/${data_source}/${data_source}_train.json -dev data/${data_source}/${data_source}_dev.json -te data/${data_source}/${data_source}_test.json -out exp/${data_source}/t5-large_cts_fine-tune_chrf -hf google-t5/t5-large -em chrf -px "Complete this sentence: "
 
 
 # Baseline models
 ## No prefix, ChrF
 ### flan-t5-base
-#python3 fine_tune_t5.py -tr data/${data_source}/${data_source}_train.json -dev data/${data_source}/${data_source}_dev.json -te data/${data_source}/${data_source}_test.json -out exp/${data_source}/flan-t5-base_nopx_fine-tune_chrf -hf google/flan-t5-base -em chrf
+python3 fine_tune_t5.py -tr data/${data_source}/${data_source}_train.json -dev data/${data_source}/${data_source}_dev.json -te data/${data_source}/${data_source}_test.json -out exp/${data_source}/flan-t5-base_nopx_fine-tune_chrf -hf google/flan-t5-base -em chrf
 ### t5-base
-#python3 fine_tune_t5.py -tr data/${data_source}/${data_source}_train.json -dev data/${data_source}/${data_source}_dev.json -te data/${data_source}/${data_source}_test.json -out exp/${data_source}/t5-base_nopx_fine-tune_chrf -hf google-t5/t5-base -em chrf
+python3 fine_tune_t5.py -tr data/${data_source}/${data_source}_train.json -dev data/${data_source}/${data_source}_dev.json -te data/${data_source}/${data_source}_test.json -out exp/${data_source}/t5-base_nopx_fine-tune_chrf -hf google-t5/t5-base -em chrf
 
 ## "Complete this sentence: ", ChrF
 ### flan-t5-base
-#python3 fine_tune_t5.py -tr data/${data_source}/${data_source}_train.json -dev data/${data_source}/${data_source}_dev.json -te data/${data_source}/${data_source}_test.json -out exp/${data_source}/flan-t5-base_cts_fine-tune_chrf -hf google/flan-t5-base -em chrf -px "Complete this sentence: "
+python3 fine_tune_t5.py -tr data/${data_source}/${data_source}_train.json -dev data/${data_source}/${data_source}_dev.json -te data/${data_source}/${data_source}_test.json -out exp/${data_source}/flan-t5-base_cts_fine-tune_chrf -hf google/flan-t5-base -em chrf -px "Complete this sentence: "
 ### t5-base
-#python3 fine_tune_t5.py -tr data/${data_source}/${data_source}_train.json -dev data/${data_source}/${data_source}_dev.json -te data/${data_source}/${data_source}_test.json -out exp/${data_source}/t5-base_cts_fine-tune_chrf -hf google-t5/t5-base -em chrf -px "Complete this sentence: "
+python3 fine_tune_t5.py -tr data/${data_source}/${data_source}_train.json -dev data/${data_source}/${data_source}_dev.json -te data/${data_source}/${data_source}_test.json -out exp/${data_source}/t5-base_cts_fine-tune_chrf -hf google-t5/t5-base -em chrf -px "Complete this sentence: "
 
 
 # Backup scripts
