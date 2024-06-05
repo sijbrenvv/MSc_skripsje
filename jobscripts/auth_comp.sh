@@ -2,7 +2,7 @@
 #SBATCH --time=04:00:00
 #SBATCH --gpus-per-node=a100:1
 #SBATCH --partition=gpu
-#SBATCH --mem=48000
+#SBATCH --mem=86000
 
 module purge
 module load Python/3.11.3-GCCcore-12.3.0
@@ -33,26 +33,26 @@ data_source=$1
 # Completion models
 ## No prefix
 ### flan-t5-xl
-#python3 authentic_completion.py -ad data/Aphasic/aphasia_broca_processed.json -out exp/${data_source}/flan-t5-xl_nopx_auth_comp -m google/flan-t5-xl
+python3 authentic_completion.py -ad data/Aphasia/aphasia_broca_processed.json -out exp/${data_source}/flan-t5-xl_nopx_auth_comp -m google/flan-t5-xl
 ### t5-large
-#python3 authentic_completion.py -ad data/Aphasic/aphasia_broca_processed.json -out exp/${data_source}/t5-large_nopx_auth_comp -m google-t5/t5-large
+python3 authentic_completion.py -ad data/Aphasia/aphasia_broca_processed.json -out exp/${data_source}/t5-large_nopx_auth_comp -m google-t5/t5-large
 
 
 ##"Complete this sentence: "
 ### flan-t5-xl
-#python3 authentic_completion.py -ad data/Aphasic/aphasia_broca_processed.json -out exp/${data_source}/flan-t5-xl_cts_auth_comp -m google/flan-t5-xl -px "Complete this sentence: "
+python3 authentic_completion.py -ad data/Aphasia/aphasia_broca_processed.json -out exp/${data_source}/flan-t5-xl_cts_auth_comp -m google/flan-t5-xl -px "Complete this sentence: "
 ### t5-large
-#python3 authentic_completion.py -ad data/Aphasic/aphasia_broca_processed.json -out exp/${data_source}/t5-large_cts_auth_comp -m google-t5/t5-large -px "Complete this sentence: "
+python3 authentic_completion.py -ad data/Aphasia/aphasia_broca_processed.json -out exp/${data_source}/t5-large_cts_auth_comp -m google-t5/t5-large -px "Complete this sentence: "
 
 
 # Baseline models
 ## No prefix
 ### t5-base
-#python3 authentic_completion.py -ad data/Aphasic/aphasia_broca_processed.json -out exp/${data_source}/t5-base_nopx_auth_comp -m google-t5/t5-base
+python3 authentic_completion.py -ad data/Aphasia/aphasia_broca_processed.json -out exp/${data_source}/t5-base_nopx_auth_comp -m google-t5/t5-base
 
 ## "Complete this sentence: "
 ### t5-base
-#python3 authentic_completion.py -ad data/Aphasic/aphasia_broca_processed.json -out exp/${data_source}/t5-base_cts_auth_comp -m google-t5/t5-base -px "Complete this sentence: "
+python3 authentic_completion.py -ad data/Aphasia/aphasia_broca_processed.json -out exp/${data_source}/t5-base_cts_auth_comp -m google-t5/t5-base -px "Complete this sentence: "
 
 
 # Backup scripts
