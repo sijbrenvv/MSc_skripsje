@@ -52,32 +52,43 @@ def tokenize_function(examples, **fn_kwargs: dict[str:any]):
         truncation=True,
         return_tensors="pt")
 
-def get_data(test_path: str, random_seed: int) -> pd.DataFrame:
+def get_data(auth_path: str, random_seed: int) -> pd.DataFrame:
     """
     Function to read dataframe with columns.
     Args:
-        test_path (str): Path to the file containing the test data.
+        auth_path (str): Path to the file containing the authentic data.
     Returns:
         pd.Series, pd.Series: A series containing the source text and a series containing the target text.
     """
-    test_df = pd.read_json(test_path, lines=True)
+    auth_df = pd.read_json(auth_path, lines=True)
+    temp_dataset = Dataset.from_pandas(auth_df)
 
-    # Rename the columns of the data (train and test) from 'synthetic' and 'preprocessed_text' to 'Source' and 'Target' respectively
-    test_df.rename(columns={"synthetic": "Source", "preprocessed_text": "Target"}, inplace=True)
+    # Capitalise preprocessed_text and remove the space before the full stop
+    temp_dataset = temp_dataset.map(
+        lambda example: {
+            "preprocessed_text": example["preprocessed_text"].capitalize().rstrip(" .") + "."
+        }
+    )
 
-    # We only need the 'Source' and 'Target' columns
-    test_df = test_df[["Source", "Target"]]
+    auth_df = Dataset.to_pandas(temp_dataset)
+    del temp_dataset
 
-    return test_df
+    # Rename 'preprocessed_text' to 'Source'
+    auth_df.rename(columns={"preprocessed_text": "Source"}, inplace=True)
+
+    # We only need the 'Source' column
+    auth_df = auth_df[["Source"]]
+
+    return auth_df
 
 
-def test(test_data: pd.DataFrame, best_model_path: str, prefix: str) -> list[str]:
+def test(auth_data: pd.DataFrame, best_model_path: str, prefix: str) -> list[str]:
     """ """
     # Clear CUDA cache
     torch.cuda.empty_cache()
 
     # Pandas dataframe to huggingface Dataset
-    test_dataset = Dataset.from_pandas(test_data)
+    auth_dataset = Dataset.from_pandas(auth_data)
 
     # Get tokeniser from saved model and load best model
     tokenizer = AutoTokenizer.from_pretrained(best_model_path)
@@ -104,16 +115,16 @@ def test(test_data: pd.DataFrame, best_model_path: str, prefix: str) -> list[str
     if prefix != "":
         # Tokenise using a simple prefix (the same as Misra and colleagues)
         logger.info(f"Adding prefix to test set...")
-        test_dataset = test_dataset.map(
+        auth_dataset = auth_dataset.map(
             lambda example: {
                 "Source": prefix + example["Source"]
             }
         )
     #tokens = tokenizer(['Complete this sentence: ' + s for s in test_dataset['Source']], padding=True, return_tensors="pt")
-    tokens = tokenizer(test_dataset['Source'], padding=True, return_tensors="pt")  #.to(device)
+    tokens = tokenizer(auth_dataset['Source'], padding=True, return_tensors="pt")  #.to(device)
 
     # Clear memory
-    del test_dataset, test_data
+    del auth_dataset, auth_data
 
     # Clear CUDA cache
     torch.cuda.empty_cache()
@@ -140,10 +151,10 @@ def test(test_data: pd.DataFrame, best_model_path: str, prefix: str) -> list[str
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--test_file_path",
-        "-te",
+        "--auth_file_path",
+        "-ad",
         required=True,
-        help="Path to the test file.",
+        help="Path to the authentic data (in JSON format).",
         type=str,
     )
     parser.add_argument(
@@ -154,11 +165,11 @@ if __name__ == "__main__":
         type=str,
     )
     parser.add_argument(
-        "--huggingface_model",
-        "-hf",
+        "--model",
+        "-m",
         type=str,
-        help="Name of the model on HuggingFace. Default: 'google/flan-t5-small'",
-        default="google/flan-t5-small"
+        help="Name of the model to generate completions. Default: 'google/flan-t5-xl'",
+        default="google/flan-t5-xl"
     )
     parser.add_argument(
         "--random_seed",
@@ -172,7 +183,7 @@ if __name__ == "__main__":
         "--prefix",
         "-px",
         type=str,
-        help="The prefix to use, include colon followed by a space ': '!. Default: ' '",
+        help="The prefix to use, include colon followed by a space ': '!. Default: ''",
         default=""
     )
 
@@ -181,31 +192,24 @@ if __name__ == "__main__":
     # Set seed for replication
     set_seed(args.random_seed)
 
-    if not os.path.exists(args.train_file_path):
-        raise FileNotFoundError(f"Train file '{args.train_file_path}' not found.")
-    if not os.path.exists(args.test_file_path):
-        raise FileNotFoundError(f"Test file '{args.test_file_path}' not found.")
+    if not os.path.exists(args.auth_file_path):
+        raise FileNotFoundError(f"Authentic data file '{args.auth_file_path}' not found.")
 
-    test_path = args.test_file_path  # For example, 'test.json'
-    model = args.huggingface_model  # For example, 'google/flan-t5-small'
+    auth_path = args.auth_file_path  # For example, 'test.json'
+    model = args.model  # For example, 'google/flan-t5-small'
     pref = args.prefix  # For example, 'Complete this sentence: '
 
-    # Get the data for the train and dev sets
+    # Get the data
     logger.info(f"Loading the data...")
-    test_df = get_data(test_path, args.random_seed)
+    auth_df = get_data(auth_path, args.random_seed)
 
     # Test completion model
-    logger.info(f"Testing completion model...")
-    gen_comp_ft = test(test_data=test_df, best_model_path=f"models/{model}/{args.random_seed}/best/", prefix=pref)
+    logger.info(f"Generating completions for the authentic data...")
+    gen_comp = test(auth_data=auth_df, best_model_path=f"models/{model}/{args.random_seed}/best/", prefix=pref)
 
     output_df = pd.DataFrame({
-        "Source": test_df['Source'].to_list(),
-        "Target": test_df['Target'].to_list(),
-        "Gen_comp": gen_comp_ft,
-        #"Meteor": eval_sc['meteor_sc'],
-        #"Bleu": eval_sc['bleu_sc'],
-        "ChrF": eval_sc['chrf_sc'],
-        "Cos_sim_t5": eval_sc['cs_t5']
+        "Source": auth_df['Source'].to_list(),
+        "Gen_comp": gen_comp
     })
 
     # Export dataframe
