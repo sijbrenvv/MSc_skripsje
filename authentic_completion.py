@@ -203,14 +203,24 @@ if __name__ == "__main__":
     logger.info(f"Loading the data...")
     auth_df = get_data(auth_path, args.random_seed)
 
+    output_df = pd.DataFrame({
+        "Source": [],
+        "Gen_comp": []
+    })
+
     # Test completion model
     logger.info(f"Generating completions for the authentic data...")
-    gen_comp = test(auth_data=auth_df, best_model_path=f"models/{model}/{args.random_seed}/best/", prefix=pref)
-
-    output_df = pd.DataFrame({
-        "Source": auth_df['Source'].to_list(),
-        "Gen_comp": gen_comp
-    })
+    # Split dataframe into five pieces
+    for sub_df in np.array_split(auth_df, 5):
+        # Convert data structure to pandas df
+        df = pd.DataFrame(sub_df)
+        gen_comp = test(auth_data=df, best_model_path=f"models/{model}/{args.random_seed}/best/", prefix=pref)
+        temp_df = pd.DataFrame({
+            "Source": df['Source'].to_list(),
+            "Gen_comp": gen_comp
+        })
+        output_df = pd.concat([output_df, temp_df])
+        del temp_df
 
     # Export dataframe
     output_dir = args.output_file_path.split("_")[0]
