@@ -211,7 +211,8 @@ if __name__ == "__main__":
     # Test completion model
     logger.info(f"Generating completions for the authentic data...")
     # Split dataframe into five pieces
-    for sub_df in np.array_split(auth_df, 5):
+    for c, sub_df in enumerate(np.array_split(auth_df, 10), start=1):
+        logger.info(f"Processing sub df: {c}")
         # Convert data structure to pandas df
         df = pd.DataFrame(sub_df)
         gen_comp = test(auth_data=df, best_model_path=f"models/{model}/{args.random_seed}/best/", prefix=pref)
@@ -220,7 +221,7 @@ if __name__ == "__main__":
             "Gen_comp": gen_comp
         })
         output_df = pd.concat([output_df, temp_df])
-        del temp_df
+        del temp_df, df
 
     # Export dataframe
     output_dir = args.output_file_path.split("_")[0]
