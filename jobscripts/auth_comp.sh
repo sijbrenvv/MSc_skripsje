@@ -35,14 +35,14 @@ data_source=$1
 ### flan-t5-xl
 python3 authentic_completion.py -ad data/Aphasia/aphasia_broca_processed.json -out exp/${data_source}/flan-t5-xl_nopx_auth_comp -m google/flan-t5-xl
 ### t5-large
-python3 authentic_completion.py -ad data/Aphasia/aphasia_broca_processed.json -out exp/${data_source}/t5-large_nopx_auth_comp -m google-t5/t5-large
+#python3 authentic_completion.py -ad data/Aphasia/aphasia_broca_processed.json -out exp/${data_source}/t5-large_nopx_auth_comp -m google-t5/t5-large
 
 
 ##"Complete this sentence: "
 ### flan-t5-xl
 python3 authentic_completion.py -ad data/Aphasia/aphasia_broca_processed.json -out exp/${data_source}/flan-t5-xl_cts_auth_comp -m google/flan-t5-xl -px "Complete this sentence: "
 ### t5-large
-python3 authentic_completion.py -ad data/Aphasia/aphasia_broca_processed.json -out exp/${data_source}/t5-large_cts_auth_comp -m google-t5/t5-large -px "Complete this sentence: "
+#python3 authentic_completion.py -ad data/Aphasia/aphasia_broca_processed.json -out exp/${data_source}/t5-large_cts_auth_comp -m google-t5/t5-large -px "Complete this sentence: "
 
 
 # Baseline models

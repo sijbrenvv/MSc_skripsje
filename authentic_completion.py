@@ -69,6 +69,8 @@ def get_data(auth_path: str, random_seed: int) -> pd.DataFrame:
             "preprocessed_text": example["preprocessed_text"].capitalize().rstrip(" .") + "."
         }
     )
+    # Remove one-word and two-word utterances
+    temp_dataset = temp_dataset.filter(lambda example: len(example["preprocessed_text"].split()) >= 3)
 
     auth_df = Dataset.to_pandas(temp_dataset)
     del temp_dataset
@@ -226,6 +228,6 @@ if __name__ == "__main__":
     # Export dataframe
     output_dir = args.output_file_path.split("_")[0]
     os.makedirs(output_dir, exist_ok=True)
-    logger.info(f"Exporting dataframe to '{output_dir + '/' + args.output_file_path.split('/')[-1]}.[json|csv]'...")
+    logger.info(f"\nExporting dataframe to '{output_dir + '/' + args.output_file_path.split('/')[-1]}.[json|csv]'...\n")
     output_df.to_csv(output_dir + "/" + args.output_file_path.split("/")[-1] + ".csv", index=False, sep=',')
     output_df.to_json(output_dir + "/" + args.output_file_path.split("/")[-1] + ".json", orient="records", lines=True)
